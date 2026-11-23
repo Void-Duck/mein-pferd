@@ -368,7 +368,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 
 const BREEDS = [
@@ -1355,16 +1355,18 @@ function saveNow(final) {
 // Browser löschen den Speicher eingebetteter Seiten oft beim Schließen des Tabs.
 // Darum wird der Spielstand dort zusätzlich im eigenen Claude-Konto gesichert (privat).
 const Cloud = {
-  doc: null, ok: false, t: 0, busy: false, again: false, lastJson: '',
+  doc: null, db: null, ok: false, t: 0, busy: false, again: false, lastJson: '', connecting: null,
   available() { return !!(window.claude && window.claude.use); },
   // Verbinden und gespeicherten Stand holen. Liefert den Stand oder null.
-  async connect() {
+  connect() { if (!this.connecting) this.connecting = this._connect(); return this.connecting; },
+  async _connect() {
     if (!this.available()) return null;
     try {
       const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
       if (!db || !user) return null;
       const id = await user.id();
       if (!id) return null;
+      this.db = db;
       this.doc = db.collection('data/users/' + id).doc('spielstand');
       const snap = await this.doc.get();
       this.ok = true;
@@ -1384,12 +1386,44 @@ const Cloud = {
     const json = JSON.stringify(S);
     if (json === this.lastJson) return;
     this.busy = true;
-    try { await this.doc.set({ json, last: S.last || Date.now() }); this.lastJson = json; }
+    try {
+      await this.doc.set({ json, last: S.last || Date.now() });
+      this.lastJson = json;
+      const key = nameKey(S.horse.name);
+      if (this.db && key) await this.db.doc('pferde/' + key).set({ json, last: S.last || Date.now(), name: S.horse.name });
+    }
     catch (e) { if (e && (e.code === 'revoked' || e.code === 'invalid_argument' || e.code === 'not_granted')) this.doc = null; }
     this.busy = false;
     if (this.again) { this.again = false; this.write(); }
   },
 };
+// Schlüssel aus dem Pferdenamen: „Sternchen“ → sternchen, „Müsli Maus“ → muesli-maus
+function nameKey(n) {
+  const k = String(n || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return k || null;
+}
+// Pferd nach Namen in der Cloud suchen
+async function findByName(name) {
+  const key = nameKey(name);
+  if (!key || !Cloud.available()) return null;
+  await Promise.race([Cloud.connect(), new Promise(r => setTimeout(r, 8000))]);
+  if (!Cloud.db) return null;
+  try {
+    const snap = await Cloud.db.doc('pferde/' + key).get();
+    const d = snap && snap.exists ? snap.data() : null;
+    if (d && typeof d.json === 'string') { const st = JSON.parse(d.json); if (st && st.horse) return st; }
+  } catch (e) { }
+  return null;
+}
+// Wo läuft das Spiel gerade?
+function runMode() {
+  if (Cloud.available()) return 'claude';
+  if (location.protocol === 'file:') return 'android';
+  if (navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) return 'homescreen';
+  return 'browser';
+}
+const RUN_NAMES = { android: 'Android-App', claude: 'Claude-Link', homescreen: 'Home-Bildschirm-App', browser: 'Browser-Tab' };
 // Liest den Stand aus der Cloud, mit Zeitlimit; übernimmt ihn, wenn er neuer ist
 async function syncFromCloud(maxMs) {
   if (!Cloud.available()) return false;
@@ -2058,7 +2092,7 @@ function renderCreator() {
   $('#cSteps').innerHTML = C_STEPS.map((_, i) => `<i class="${i <= C_step ? 'on' : ''}"></i>`).join('');
   let h = '';
   if (st === 'rasse') {
-    h += `<h2>Welche Rasse?</h2><p class="sub">Vom Mini-Shetty bis zum Kaltblut${C_edit ? '' : ' · <button id="haveCode" style="color:var(--pink-d);font-weight:800;text-decoration:underline">Ich habe einen Spielstand-Code</button>'}</p><div class="scroll"><div class="optgrid">`;
+    h += `<h2>Welche Rasse?</h2><p class="sub">Vom Mini-Shetty bis zum Kaltblut</p><div class="scroll">${C_edit ? '' : '<button id="haveHorse" class="bonus" style="width:100%;text-align:left"><span class="big">🐴</span><span>Ich habe schon ein Pferd!<br><small style="color:var(--ink2)">Hol dein Pferd mit seinem Namen zurück</small></span></button>'}<div class="optgrid">`;
     BREEDS.forEach(b => {
       h += `<button class="opt ${d.breed === b.id ? 'on' : ''}" data-breed="${b.id}"><div class="pv">${cropPrev(horseSVG(Object.assign({}, d, { breed: b.id, equip: {} }), { anim: false }))}</div>${b.name}<small>${b.desc}</small></button>`;
     });
@@ -2114,7 +2148,7 @@ function creatorClick(e) {
   if (!b) return;
   const d = C_draft;
   if (b.dataset.locked) { Snd.play('nope'); toast('Das gibt es im Shop zu kaufen 🛍️'); return; }
-  if (b.id === 'haveCode') { showImport(); return; }
+  if (b.id === 'haveHorse') { showFindHorse(); return; }
   if (b.id === 'dice') { d.name = NAMES[Math.floor(Math.random() * NAMES.length)]; $('#nameIn').value = d.name; updateCreatorNext(); Snd.play('pop'); return; }
   if (b.dataset.name) { d.name = b.dataset.name; $('#nameIn').value = d.name; updateCreatorNext(); Snd.play('pop'); return; }
   let changed = true;
@@ -2163,7 +2197,7 @@ async function openSettings() {
     <div class="setrow">Tag & Nacht nach Uhrzeit <button class="toggle ${S.dayNight ? 'on' : ''}" id="sDay"></button></div>
     <div class="setrow">Dein Name <input id="sOwner" maxlength="14" value="${esc(S.owner)}"></div>
     <div class="setrow">Pferdename <input id="sHorse" maxlength="16" value="${esc(S.horse.name)}"></div>
-    <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">${Cloud.ok ? 'Wird auf diesem Gerät <b>und in deinem Claude-Konto</b> gespeichert ☁️' : 'Wird auf diesem Gerät gespeichert.'} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div></div>
+    <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">Läuft als: <b>${RUN_NAMES[runMode()]}</b> · Cloud: <b>${Cloud.ok ? 'aktiv ☁️ (auch unter dem Namen gesichert)' : 'nicht verfügbar'}</b><br>${runMode() === 'browser' ? '⚠️ Im Browser-Tab kann der Spielstand verloren gehen. Lege das Spiel auf den Home-Bildschirm und spiele nicht im privaten Modus. ' : ''} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div></div>
     <div class="setrow" style="border:0"><button class="btn" id="sReset" style="font-size:14px;padding:10px;color:#D33">Ganz von vorne anfangen</button></div>
     <p style="font-size:12px;text-align:center">Pferde-Tamagotchi · Version ${APP_VERSION}<br>Spiele ${S.gamesPlayed}× gespielt</p>
     <div class="row"><button class="btn pri" id="sOk">Fertig</button></div></div>`;
@@ -2189,16 +2223,43 @@ async function openSettings() {
 function showExport() {
   const code = exportCode();
   const m = $('#modal');
-  m.innerHTML = `<div class="gbox"><div class="emoji">📋</div><h2>Spielstand-Code</h2><p>Kopiere den Code und bewahre ihn auf (z. B. in einer Notiz). Mit „Code laden“ holst du ${esc(S.horse.name)} zurück.</p><textarea id="codeBox" readonly style="width:100%;height:110px;font-size:11px;border-radius:12px;border:2px solid var(--line);padding:8px;-webkit-user-select:text;user-select:text;word-break:break-all">${code}</textarea><div class="row"><button class="btn" id="cOk">Schließen</button><button class="btn pri" id="cCopy">Kopieren</button></div></div>`;
+  m.innerHTML = `<div class="gbox"><div class="emoji">📋</div><h2>Spielstand-Code</h2><p>Kopiere den Code und bewahre ihn auf (z. B. in einer Notiz). Mit „Code laden“ holst du ${esc(S.horse.name)} zurück.</p><textarea id="codeBox" style="width:100%;height:110px;font-size:11px;border-radius:12px;border:2px solid var(--line);padding:8px;-webkit-user-select:text;user-select:text;word-break:break-all">${code}</textarea><div class="row"><button class="btn" id="cOk">Schließen</button><button class="btn pri" id="cCopy">Kopieren</button></div></div>`;
   m.classList.remove('hidden');
   m.onclick = async e => {
     if (e.target.id === 'cCopy') {
       let ok = false;
-      try { await navigator.clipboard.writeText(code); ok = true; } catch (err) { }
-      if (!ok) { const t = $('#codeBox'); t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch (err) { } }
-      toast(ok ? 'Code kopiert ✓' : 'Bitte den Code markieren und kopieren');
+      const t = $('#codeBox');
+      t.value = code; t.focus(); t.setSelectionRange(0, code.length);
+      try { ok = document.execCommand('copy') && (t.selectionEnd - t.selectionStart) === code.length; } catch (err) { }
+      if (!ok) { try { await navigator.clipboard.writeText(code); ok = true; } catch (err) { } }
+      toast(ok ? 'Code kopiert ✓ – füge ihn z. B. in Notizen ein' : 'Kopieren ging nicht: Code ist markiert, tippe darauf → „Kopieren“', 3500);
     }
     if (e.target.id === 'cOk') { m.classList.add('hidden'); m.onclick = null; }
+  };
+}
+function showFindHorse() {
+  const m = $('#modal');
+  const cloud = Cloud.available();
+  m.innerHTML = `<div class="gbox"><div class="emoji">🐴</div><h2>Dein Pferd zurückholen</h2>${cloud ? `<p>Wie heißt dein Pferd?</p><input id="fhName" maxlength="16" autocomplete="off" placeholder="Name…" style="width:100%;font-size:20px;font-weight:800;padding:12px;border-radius:14px;border:2.5px solid var(--pink);-webkit-user-select:text;user-select:text"><p id="fhMsg" style="min-height:20px"></p>` : `<p>Hier (${RUN_NAMES[runMode()]}) gibt es keine Namens-Suche. Füge stattdessen deinen Spielstand-Code ein.</p>`}<div class="row"><button class="btn" id="fhNo">Abbrechen</button>${cloud ? '<button class="btn pri" id="fhGo">Suchen</button>' : ''}</div><button id="fhCode" style="margin-top:12px;color:var(--pink-d);font-weight:800;text-decoration:underline">Spielstand-Code einfügen</button></div>`;
+  m.classList.remove('hidden');
+  if (!cloud) { m.onclick = e => { if (e.target.id === 'fhNo') { m.classList.add('hidden'); m.onclick = null; } if (e.target.id === 'fhCode') showImport(); }; return; }
+  let found = null;
+  m.onclick = async e => {
+    if (e.target.id === 'fhNo') { m.classList.add('hidden'); m.onclick = null; return; }
+    if (e.target.id === 'fhCode') { showImport(); return; }
+    if (e.target.id === 'fhGo') {
+      if (found) { m.classList.add('hidden'); m.onclick = null; restartWith(found); Snd.play('win'); toast(`Willkommen zurück, ${found.horse.name}! 🐴`); return; }
+      const name = $('#fhName').value.trim();
+      if (!name) return;
+      $('#fhMsg').textContent = 'Suche… 🔍'; e.target.disabled = true;
+      const st = await findByName(name);
+      e.target.disabled = false;
+      if (!st) { Snd.play('nope'); $('#fhMsg').textContent = `Kein Pferd „${name}“ gefunden. Richtig geschrieben?`; return; }
+      found = st;
+      const B = byId(BREEDS, st.horse.breed);
+      $('#fhMsg').innerHTML = `Gefunden: <b>${esc(st.horse.name)}</b> (${B.name}), ${st.coins} 🪙`;
+      e.target.textContent = 'Zurückholen ✓'; Snd.play('coin');
+    }
   };
 }
 function showImport() {
@@ -2265,6 +2326,7 @@ function startMain(first) {
     window.addEventListener('pagehide', () => saveNow(true));
     window.addEventListener('beforeunload', () => saveNow(true));
   }
+  if (runMode() === 'browser' && !S.tabHint) { S.tabHint = true; save(); setTimeout(() => toast('Tipp: Lege das Spiel auf den Home-Bildschirm, damit dein Spielstand sicher bleibt 📲', 5000), 2500); }
   if (first) {
     setTimeout(() => { say(`Hallo ${S.owner}! Ich bin ${S.horse.name}! 💕`, 3500); Snd.play('neigh'); }, 600);
     setTimeout(() => modal(`<div class="emoji">🐴</div><h2>So geht's</h2><p style="text-align:left">👈 <b>Nach links wischen:</b> Minispiele – damit verdienst du Münzen 🪙<br><br>👉 <b>Nach rechts wischen:</b> Futter<br><br>🧽 <b>In der Mitte:</b> streicheln, waschen, bürsten und im 🛍️ Shop schöne Sachen kaufen</p>`, [{ label: 'Alles klar!', pri: true }]), 1800);
@@ -2331,9 +2393,17 @@ function exportCode() {
   return 'PFERD1:' + btoa(unescape(encodeURIComponent(json)));
 }
 function importCode(code) {
-  code = String(code || '').trim().replace(/\s+/g, '');
-  if (!code.startsWith('PFERD1:')) return null;
-  try { const st = JSON.parse(decodeURIComponent(escape(atob(code.slice(7))))); return st && st.v && st.horse ? st : null; } catch (e) { return null; }
+  code = String(code || '');
+  const i = code.indexOf('PFERD1:');
+  const parts = (i >= 0 ? code.slice(i + 7) : code).split(/\s+/).map(t => t.replace(/[^A-Za-z0-9+/=]/g, '')).filter(Boolean);
+  // Teile nacheinander zusammensetzen, bis ein gültiger Spielstand herauskommt (Text drumherum stört so nicht)
+  let acc = '';
+  for (const t of parts) {
+    acc += t;
+    let b = acc.replace(/=+$/, ''); while (b.length % 4) b += '=';
+    try { const st = JSON.parse(decodeURIComponent(escape(atob(b)))); if (st && st.v && st.horse) return st; } catch (e) { }
+  }
+  return null;
 }
 document.addEventListener('DOMContentLoaded', init);
 
