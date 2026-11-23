@@ -1,0 +1,61 @@
+# Baut die iPhone-App (.ipa) bei jeder neuen Spielversion und legt sie unter Releases ab.
+# Diese Datei wird von Pferde/web/deploy-pages.sh nach .github/workflows/ios.yml im Repo mein-pferd kopiert.
+name: iPhone-App bauen
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'index.html', 'ios/**', 'version.txt', '.github/workflows/ios.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version lesen
+        id: v
+        run: echo "version=$(tr -d '[:space:]' < version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+
+      - name: Spiel in die App legen
+        run: |
+          mkdir -p ios/www
+          cp index.html ios/www/index.html
+
+      - name: Xcode-Projekt erzeugen
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: App bauen
+        working-directory: ios
+        run: |
+          xcodebuild -project MeinPferd.xcodeproj -scheme MeinPferd -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            MARKETING_VERSION=${{ steps.v.outputs.version }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -n 40
+          test -d build/Build/Products/Release-iphoneos/MeinPferd.app
+
+      - name: IPA packen
+        run: |
+          mkdir -p Payload
+          cp -R ios/build/Build/Products/Release-iphoneos/MeinPferd.app Payload/
+          zip -qry MeinPferd-${{ steps.v.outputs.version }}.ipa Payload
+          ls -la MeinPferd-*.ipa
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-v${{ steps.v.outputs.version }}
+          name: Mein Pferd für iPhone ${{ steps.v.outputs.version }}
+          files: MeinPferd-${{ steps.v.outputs.version }}.ipa
+          body: |
+            iPhone-App „Mein Pferd“ (unsigniert). Installation mit Sideloadly oder AltStore und deiner Apple-ID,
+            siehe README. Der Spielstand wird in der App gespeichert.

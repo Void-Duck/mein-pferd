@@ -1,0 +1,30 @@
+# Projektbeschreibung für XcodeGen (erzeugt daraus MeinPferd.xcodeproj)
+name: MeinPferd
+options:
+  bundleIdPrefix: de.privat
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  MeinPferd:
+    type: application
+    platform: iOS
+    sources:
+      - path: MeinPferd
+      - path: www
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: MeinPferd
+        PRODUCT_BUNDLE_IDENTIFIER: de.privat.meinpferd
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+    scheme: {}
