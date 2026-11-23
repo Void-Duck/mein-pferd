@@ -368,7 +368,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 
 const BREEDS = [
@@ -2240,7 +2240,7 @@ function showExport() {
 function showFindHorse() {
   const m = $('#modal');
   const cloud = Cloud.available();
-  m.innerHTML = `<div class="gbox"><div class="emoji">🐴</div><h2>Dein Pferd zurückholen</h2>${cloud ? `<p>Wie heißt dein Pferd?</p><input id="fhName" maxlength="16" autocomplete="off" placeholder="Name…" style="width:100%;font-size:20px;font-weight:800;padding:12px;border-radius:14px;border:2.5px solid var(--pink);-webkit-user-select:text;user-select:text"><p id="fhMsg" style="min-height:20px"></p>` : `<p>Hier (${RUN_NAMES[runMode()]}) gibt es keine Namens-Suche. Füge stattdessen deinen Spielstand-Code ein.</p>`}<div class="row"><button class="btn" id="fhNo">Abbrechen</button>${cloud ? '<button class="btn pri" id="fhGo">Suchen</button>' : ''}</div><button id="fhCode" style="margin-top:12px;color:var(--pink-d);font-weight:800;text-decoration:underline">Spielstand-Code einfügen</button></div>`;
+  m.innerHTML = `<div class="gbox"><div class="emoji">🐴</div><h2>Dein Pferd zurückholen</h2>${cloud ? `<p>Wie heißt dein Pferd?</p><input id="fhName" maxlength="16" autocomplete="off" placeholder="Name…" style="width:100%;font-size:20px;font-weight:800;padding:12px;border-radius:14px;border:2.5px solid var(--pink);-webkit-user-select:text;user-select:text"><p id="fhMsg" style="min-height:20px"></p>` : `<p>Die Suche nach Namen gibt es nur im Claude-Link. Hier holst du dein Pferd mit dem <b>Spielstand-Code</b> zurück (⚙️ Einstellungen → „Code sichern“ auf dem alten Gerät).</p>`}<div class="row"><button class="btn" id="fhNo">Abbrechen</button>${cloud ? '<button class="btn pri" id="fhGo">Suchen</button>' : ''}</div><button id="fhCode" style="margin-top:12px;color:var(--pink-d);font-weight:800;text-decoration:underline">Spielstand-Code einfügen</button></div>`;
   m.classList.remove('hidden');
   if (!cloud) { m.onclick = e => { if (e.target.id === 'fhNo') { m.classList.add('hidden'); m.onclick = null; } if (e.target.id === 'fhCode') showImport(); }; return; }
   let found = null;
@@ -2368,7 +2368,24 @@ function init() {
 
   boot();
 }
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Auf dem iPhone im Safari-Tab: erst zum Home-Bildschirm hinzufügen lassen (sonst löscht Safari den Spielstand)
+function showInstall() {
+  return new Promise(res => {
+    const m = $('#modal');
+    m.innerHTML = `<div class="gbox" style="text-align:left"><div class="emoji" style="text-align:center">📲</div><h2 style="text-align:center">Erst installieren!</h2>
+      <p>Im Safari-Tab löscht das iPhone deinen Spielstand, sobald der Tab zu ist. Als App auf dem Home-Bildschirm bleibt dein Pferd für immer gespeichert:</p>
+      <p style="color:var(--ink)"><b>1.</b> Unten auf <b>Teilen</b> tippen <span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:#E8F1FF;vertical-align:middle"><svg width="16" height="18" viewBox="0 0 16 18"><path d="M8,1 L8,11 M4,5 L8,1 L12,5" stroke="#2F7FE0" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5,7 L2,7 L2,17 L14,17 L14,7 L11,7" stroke="#2F7FE0" stroke-width="1.8" fill="none" stroke-linejoin="round"/></svg></span><br>
+      <b>2.</b> Nach unten wischen → <b>„Zum Home-Bildschirm“</b><br>
+      <b>3.</b> <b>„Hinzufügen“</b> tippen<br>
+      <b>4.</b> Das Spiel ab jetzt <b>nur über das neue Symbol 🐴</b> starten</p>
+      <div class="row" style="flex-direction:column"><button class="btn" id="insSkip" style="font-size:14px;padding:10px">Trotzdem hier im Browser spielen</button></div></div>`;
+    m.classList.remove('hidden');
+    m.onclick = e => { if (e.target.id === 'insSkip') { m.classList.add('hidden'); m.onclick = null; res(); } };
+  });
+}
 async function boot() {
+  if (runMode() === 'browser' && isIOS()) await showInstall();
   if (Cloud.available()) {
     $('#loading').classList.remove('hidden');
     const took = await syncFromCloud(6000);
