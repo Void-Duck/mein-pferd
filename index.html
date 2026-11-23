@@ -368,8 +368,16 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
+// WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
+// Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
+// sonst gehen gekaufte Sachen verloren. Muss doch etwas umziehen: in migrate() (app.js) umschreiben.
+
+// „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
+const CHANGELOG = [
+  { v: '1.3.0', items: ['Updates kommen jetzt beim ersten Öffnen an', 'Automatische Sicherungen der letzten 3 Tage (⚙️ Einstellungen)'] },
+];
 
 const BREEDS = [
   { id: 'minishetty', name: 'Mini-Shetty', desc: 'Winzig, frech und flauschig', scale: 0.66, leg: 0.62, legW: 1.05, body: 1.18, len: 0.92, head: 1.18, mane: 1.45, tail: 0.85, feather: 0.55, coat: 'schecke' },
@@ -1337,13 +1345,29 @@ function defaultState() {
 let S;
 // Spielstand der iPhone-App (liegt als Datei in der App, wird beim Start eingesetzt)
 const nativeApp = () => !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pferdSave);
+// Spielstand-Format: bei grundsätzlichen Änderungen SAVE_VERSION erhöhen und in migrate() alte Stände umbauen
+const SAVE_VERSION = 1;
+function migrate(st) {
+  // Beispiel für später:  if (st.v < 2) { st.neuesFeld = …; st.v = 2; }
+  if (!Array.isArray(st.owned)) st.owned = [];
+  if (!st.stats) st.stats = {};
+  for (const k of ['hunger', 'fun', 'clean']) if (typeof st.stats[k] !== 'number' || isNaN(st.stats[k])) st.stats[k] = 70;
+  if (st.horse) {
+    st.horse.equip = st.horse.equip || {};
+    // Zubehör, das es nicht mehr gibt, ablegen (bleibt aber als gekauft gespeichert)
+    for (const sl in st.horse.equip) if (!ITEMS.some(i => i.id === st.horse.equip[sl])) delete st.horse.equip[sl];
+  }
+  if (!SCENES.some(x => x.id === st.scene)) st.scene = 'weide';
+  st.v = Math.max(st.v || 1, SAVE_VERSION);
+  return st;
+}
 function load() {
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
   if (typeof window.__nativeSave === 'string') {
     try { const n = JSON.parse(window.__nativeSave); if (n && n.v && (!S || !S.horse || (n.last || 0) >= (S.last || 0))) S = n; } catch (e) { }
   }
   if (!S || !S.v) S = defaultState();
-  S = Object.assign(defaultState(), S);
+  S = migrate(Object.assign(defaultState(), S));
 }
 let saveT = 0;
 function save() {
@@ -1354,6 +1378,7 @@ function saveNow(final) {
   S.last = Date.now();
   const json = JSON.stringify(S);
   try { localStorage.setItem(KEY, json); } catch (e) { /* Speicher nicht verfügbar */ }
+  dailyBackup(json);
   if (nativeApp()) { try { window.webkit.messageHandlers.pferdSave.postMessage(json); } catch (e) { } }
   Cloud.push(final);
 }
@@ -1461,6 +1486,17 @@ function moodOf() {
   return 'ok';
 }
 const owns = id => S.owned.includes(id);
+
+// ---------- Automatische Sicherungen (eine pro Tag, die letzten 3) ----------
+const BKEY = KEY + '.sicherungen';
+function backups() { try { return JSON.parse(localStorage.getItem(BKEY)) || []; } catch (e) { return []; } }
+function dailyBackup(json) {
+  if (!S || !S.horse) return;
+  const list = backups(), day = today();
+  if (list.length && list[0].day === day) return;
+  list.unshift({ day, json });
+  try { localStorage.setItem(BKEY, JSON.stringify(list.slice(0, 3))); } catch (e) { }
+}
 
 // ---------- Tag & Nacht ----------
 function realPhase() {
@@ -2205,7 +2241,7 @@ async function openSettings() {
     <div class="setrow">Tag & Nacht nach Uhrzeit <button class="toggle ${S.dayNight ? 'on' : ''}" id="sDay"></button></div>
     <div class="setrow">Dein Name <input id="sOwner" maxlength="14" value="${esc(S.owner)}"></div>
     <div class="setrow">Pferdename <input id="sHorse" maxlength="16" value="${esc(S.horse.name)}"></div>
-    <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">Läuft als: <b>${RUN_NAMES[runMode()]}</b>${Cloud.available() ? ` · Cloud: <b>${Cloud.ok ? 'aktiv ☁️' : 'nicht verfügbar'}</b>` : ''}${runMode() === 'ios' || runMode() === 'android' ? ' · <b>sicher in der App gespeichert ✓</b>' : ''}<br>${runMode() === 'browser' ? '⚠️ Im Browser-Tab kann der Spielstand verloren gehen. Lege das Spiel auf den Home-Bildschirm und spiele nicht im privaten Modus. ' : ''} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div></div>
+    <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">Läuft als: <b>${RUN_NAMES[runMode()]}</b>${Cloud.available() ? ` · Cloud: <b>${Cloud.ok ? 'aktiv ☁️' : 'nicht verfügbar'}</b>` : ''}${runMode() === 'ios' || runMode() === 'android' ? ' · <b>sicher in der App gespeichert ✓</b>' : ''}<br>${runMode() === 'browser' ? '⚠️ Im Browser-Tab kann der Spielstand verloren gehen. Lege das Spiel auf den Home-Bildschirm und spiele nicht im privaten Modus. ' : ''} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div><button class="btn" id="sBackups" style="font-size:14px;padding:10px;margin-top:8px;width:100%">🕓 Sicherungen der letzten Tage</button></div>
     <div class="setrow" style="border:0"><button class="btn" id="sReset" style="font-size:14px;padding:10px;color:#D33">Ganz von vorne anfangen</button></div>
     <p style="font-size:12px;text-align:center">Pferde-Tamagotchi · Version ${APP_VERSION}<br>Spiele ${S.gamesPlayed}× gespielt</p>
     <div class="row"><button class="btn pri" id="sOk">Fertig</button></div></div>`;
@@ -2220,6 +2256,7 @@ async function openSettings() {
     }
     if (e.target.id === 'sExport') { m.classList.add('hidden'); m.onclick = null; showExport(); return; }
     if (e.target.id === 'sImport') { m.classList.add('hidden'); m.onclick = null; showImport(); return; }
+    if (e.target.id === 'sBackups') { m.classList.add('hidden'); m.onclick = null; showBackups(); return; }
     if (e.target.id === 'sReset') {
       m.classList.add('hidden'); m.onclick = null;
       const ok = await modal(`<div class="emoji">😢</div><h2>Wirklich?</h2><p>Dein Pferd, alle Münzen und alle gekauften Sachen werden gelöscht.</p>`, [{ label: 'Nein!', pri: true }, { label: 'Löschen', value: true }]);
@@ -2245,6 +2282,31 @@ function showExport() {
     if (e.target.id === 'cOk') { m.classList.add('hidden'); m.onclick = null; }
   };
 }
+function showBackups() {
+  const list = backups().filter(b => b.day !== today() || backups().length === 1);
+  const m = $('#modal');
+  const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  const rows = list.map((b, i) => { let st = null; try { st = JSON.parse(b.json); } catch (e) { } return st && st.horse ? `<button class="btn" data-bi="${i}" style="font-size:14px;padding:10px;margin-top:8px;width:100%;text-align:left">🐴 ${esc(st.horse.name)} · ${st.coins} 🪙<br><small style="color:var(--ink2)">Stand vom ${fmt(b.day)}</small></button>` : ''; }).join('');
+  m.innerHTML = `<div class="gbox"><div class="emoji">🕓</div><h2>Sicherungen</h2><p>Das Spiel sichert sich jeden Tag automatisch. Tippe auf eine Sicherung, um zu diesem Stand zurückzukehren.</p>${rows || '<p><b>Noch keine älteren Sicherungen</b> – die erste gibt es morgen.</p>'}<div class="row"><button class="btn pri" id="bOk">Schließen</button></div></div>`;
+  m.classList.remove('hidden');
+  m.onclick = async e => {
+    if (e.target.id === 'bOk') { m.classList.add('hidden'); m.onclick = null; return; }
+    const b = e.target.closest('[data-bi]'); if (!b) return;
+    const st = JSON.parse(list[+b.dataset.bi].json);
+    m.classList.add('hidden'); m.onclick = null;
+    const ok = await modal(`<div class="emoji">🕓</div><h2>Zurückholen?</h2><p>Der Stand vom ${fmt(list[+b.dataset.bi].day)} ersetzt den jetzigen Spielstand.</p>`, [{ label: 'Nein' }, { label: 'Zurückholen', pri: true, value: true }]);
+    if (ok) { restartWith(st); Snd.play('win'); toast('Sicherung geladen ✓'); }
+  };
+}
+function showWhatsNew() {
+  const seen = S.seenVersion;
+  S.seenVersion = APP_VERSION; save();
+  if (!seen) return; // neues Spiel: nichts anzeigen
+  const newer = CHANGELOG.filter(c => cmpVer(c.v, seen) > 0);
+  if (!newer.length) return;
+  setTimeout(() => modal(`<div class="emoji">🎉</div><h2>Was ist neu?</h2><div style="text-align:left">${newer.map(c => c.items.map(t => `<p style="margin:6px 0">✨ ${esc(t)}</p>`).join('')).join('')}</div>`, [{ label: 'Super!', pri: true }]), 1500);
+}
+function cmpVer(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; }
 function showFindHorse() {
   const m = $('#modal');
   const cloud = Cloud.available();
@@ -2334,6 +2396,7 @@ function startMain(first) {
     window.addEventListener('pagehide', () => saveNow(true));
     window.addEventListener('beforeunload', () => saveNow(true));
   }
+  if (!first) showWhatsNew(); else { S.seenVersion = APP_VERSION; save(); }
   if (runMode() === 'browser' && !S.tabHint) { S.tabHint = true; save(); setTimeout(() => toast('Tipp: Lege das Spiel auf den Home-Bildschirm, damit dein Spielstand sicher bleibt 📲', 5000), 2500); }
   if (first) {
     setTimeout(() => { say(`Hallo ${S.owner}! Ich bin ${S.horse.name}! 💕`, 3500); Snd.play('neigh'); }, 600);
@@ -2408,7 +2471,7 @@ async function boot() {
 }
 // Spielstand ersetzen (aus Code) und neu anzeigen
 function restartWith(st) {
-  S = Object.assign(defaultState(), st);
+  S = migrate(Object.assign(defaultState(), st));
   applyDecay(); saveNow(true);
   if (!$('#creator').classList.contains('hidden')) { $('#creator').classList.add('hidden'); delete views.creator; }
   startMain(false);
@@ -3082,6 +3145,6 @@ const Games = (() => {
 })();
 
 </script>
-<script>if ('serviceWorker' in navigator && location.protocol === 'https:') { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }</script>
+<script>if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => document.addEventListener('visibilitychange', () => { if (!document.hidden) r.update().catch(() => {}); })).catch(() => {})); if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }</script>
 </body>
 </html>
