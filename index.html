@@ -363,11 +363,12 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
     <div id="garea"></div>
   </div>
 
+  <div id="loading" class="hidden" style="position:absolute;inset:0;z-index:70;display:grid;place-items:center;background:#7CC7F2"><div style="text-align:center;font-weight:900;font-size:20px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.15)"><div style="font-size:64px;animation:hop 1s infinite">🐴</div>Spielstand wird geladen…</div></div>
   <div id="modal" class="hidden"></div>
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 
 const BREEDS = [
@@ -1344,48 +1345,61 @@ function save() {
   clearTimeout(saveT);
   saveT = setTimeout(saveNow, 150);
 }
-function saveNow() {
+function saveNow(final) {
   S.last = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* Speicher nicht verfügbar */ }
-  Cloud.push();
+  Cloud.push(final);
 }
 
 // ---------- Cloud-Sicherung (nur wenn als Claude-Artefakt geöffnet, sonst ohne Wirkung) ----------
+// Browser löschen den Speicher eingebetteter Seiten oft beim Schließen des Tabs.
+// Darum wird der Spielstand dort zusätzlich im eigenen Claude-Konto gesichert (privat).
 const Cloud = {
-  doc: null, t: 0, busy: false,
-  async init() {
-    if (!window.claude || !window.claude.use) return;
+  doc: null, ok: false, t: 0, busy: false, again: false, lastJson: '',
+  available() { return !!(window.claude && window.claude.use); },
+  // Verbinden und gespeicherten Stand holen. Liefert den Stand oder null.
+  async connect() {
+    if (!this.available()) return null;
     try {
       const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-      if (!db || !user) return;
+      if (!db || !user) return null;
       const id = await user.id();
-      if (!id) return;
+      if (!id) return null;
       this.doc = db.collection('data/users/' + id).doc('spielstand');
       const snap = await this.doc.get();
-      const data = snap && (typeof snap.data === 'function' ? snap.data() : snap);
-      if (data && data.json) {
-        const remote = JSON.parse(data.json);
-        if (remote && remote.horse && (!S.horse || (remote.last || 0) > (S.last || 0) + 5000)) {
-          S = Object.assign(defaultState(), remote);
-          try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
-          location.reload();
-          return;
-        }
-      }
-      this.push();
-    } catch (e) { this.doc = null; }
+      this.ok = true;
+      const d = snap && snap.exists ? snap.data() : null;
+      if (d && typeof d.json === 'string') { this.lastJson = d.json; const st = JSON.parse(d.json); if (st && st.v) return st; }
+    } catch (e) { this.doc = null; this.ok = false; }
+    return null;
   },
-  push() {
-    if (!this.doc || !S.horse) return;
+  push(now) {
+    if (!this.doc || !S || !S.horse) return;
     clearTimeout(this.t);
-    this.t = setTimeout(async () => {
-      if (this.busy) { this.push(); return; }
-      this.busy = true;
-      try { await this.doc.set({ json: JSON.stringify(S), last: S.last }); } catch (e) { }
-      this.busy = false;
-    }, 4000);
+    if (now) this.write(); else this.t = setTimeout(() => this.write(), 1200);
+  },
+  async write() {
+    if (!this.doc) return;
+    if (this.busy) { this.again = true; return; }
+    const json = JSON.stringify(S);
+    if (json === this.lastJson) return;
+    this.busy = true;
+    try { await this.doc.set({ json, last: S.last || Date.now() }); this.lastJson = json; }
+    catch (e) { if (e && (e.code === 'revoked' || e.code === 'invalid_argument' || e.code === 'not_granted')) this.doc = null; }
+    this.busy = false;
+    if (this.again) { this.again = false; this.write(); }
   },
 };
+// Liest den Stand aus der Cloud, mit Zeitlimit; übernimmt ihn, wenn er neuer ist
+async function syncFromCloud(maxMs) {
+  if (!Cloud.available()) return false;
+  const remote = await Promise.race([Cloud.connect(), new Promise(r => setTimeout(() => r('timeout'), maxMs))]);
+  if (!remote || remote === 'timeout' || !remote.horse) return false;
+  if (S.horse && (remote.last || 0) <= (S.last || 0)) return false;
+  S = Object.assign(defaultState(), remote);
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+  return true;
+}
 // Balken sinken mit der Zeit (sanft: nie unter FLOOR)
 function applyDecay() {
   const now = Date.now();
@@ -2044,7 +2058,7 @@ function renderCreator() {
   $('#cSteps').innerHTML = C_STEPS.map((_, i) => `<i class="${i <= C_step ? 'on' : ''}"></i>`).join('');
   let h = '';
   if (st === 'rasse') {
-    h += `<h2>Welche Rasse?</h2><p class="sub">Vom Mini-Shetty bis zum Kaltblut</p><div class="scroll"><div class="optgrid">`;
+    h += `<h2>Welche Rasse?</h2><p class="sub">Vom Mini-Shetty bis zum Kaltblut${C_edit ? '' : ' · <button id="haveCode" style="color:var(--pink-d);font-weight:800;text-decoration:underline">Ich habe einen Spielstand-Code</button>'}</p><div class="scroll"><div class="optgrid">`;
     BREEDS.forEach(b => {
       h += `<button class="opt ${d.breed === b.id ? 'on' : ''}" data-breed="${b.id}"><div class="pv">${cropPrev(horseSVG(Object.assign({}, d, { breed: b.id, equip: {} }), { anim: false }))}</div>${b.name}<small>${b.desc}</small></button>`;
     });
@@ -2100,6 +2114,7 @@ function creatorClick(e) {
   if (!b) return;
   const d = C_draft;
   if (b.dataset.locked) { Snd.play('nope'); toast('Das gibt es im Shop zu kaufen 🛍️'); return; }
+  if (b.id === 'haveCode') { showImport(); return; }
   if (b.id === 'dice') { d.name = NAMES[Math.floor(Math.random() * NAMES.length)]; $('#nameIn').value = d.name; updateCreatorNext(); Snd.play('pop'); return; }
   if (b.dataset.name) { d.name = b.dataset.name; $('#nameIn').value = d.name; updateCreatorNext(); Snd.play('pop'); return; }
   let changed = true;
@@ -2148,6 +2163,7 @@ async function openSettings() {
     <div class="setrow">Tag & Nacht nach Uhrzeit <button class="toggle ${S.dayNight ? 'on' : ''}" id="sDay"></button></div>
     <div class="setrow">Dein Name <input id="sOwner" maxlength="14" value="${esc(S.owner)}"></div>
     <div class="setrow">Pferdename <input id="sHorse" maxlength="16" value="${esc(S.horse.name)}"></div>
+    <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">${Cloud.ok ? 'Wird auf diesem Gerät <b>und in deinem Claude-Konto</b> gespeichert ☁️' : 'Wird auf diesem Gerät gespeichert.'} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div></div>
     <div class="setrow" style="border:0"><button class="btn" id="sReset" style="font-size:14px;padding:10px;color:#D33">Ganz von vorne anfangen</button></div>
     <p style="font-size:12px;text-align:center">Pferde-Tamagotchi · Version ${APP_VERSION}<br>Spiele ${S.gamesPlayed}× gespielt</p>
     <div class="row"><button class="btn pri" id="sOk">Fertig</button></div></div>`;
@@ -2160,13 +2176,46 @@ async function openSettings() {
       if (o) S.owner = o; if (hn) S.horse.name = hn;
       save(); renderTop(); m.classList.add('hidden'); m.onclick = null;
     }
+    if (e.target.id === 'sExport') { m.classList.add('hidden'); m.onclick = null; showExport(); return; }
+    if (e.target.id === 'sImport') { m.classList.add('hidden'); m.onclick = null; showImport(); return; }
     if (e.target.id === 'sReset') {
       m.classList.add('hidden'); m.onclick = null;
       const ok = await modal(`<div class="emoji">😢</div><h2>Wirklich?</h2><p>Dein Pferd, alle Münzen und alle gekauften Sachen werden gelöscht.</p>`, [{ label: 'Nein!', pri: true }, { label: 'Löschen', value: true }]);
-      if (ok) { localStorage.removeItem(KEY); S = defaultState(); saveNow(); location.reload(); }
+      if (ok) { try { localStorage.removeItem(KEY); } catch (err) { } if (Cloud.doc) { try { await Cloud.doc.delete(); } catch (err) { } Cloud.lastJson = ''; } S = defaultState(); saveNow(true); $('#main').classList.add('hidden'); closeShop(); openCreator(false); }
     }
   };
 }
+
+function showExport() {
+  const code = exportCode();
+  const m = $('#modal');
+  m.innerHTML = `<div class="gbox"><div class="emoji">📋</div><h2>Spielstand-Code</h2><p>Kopiere den Code und bewahre ihn auf (z. B. in einer Notiz). Mit „Code laden“ holst du ${esc(S.horse.name)} zurück.</p><textarea id="codeBox" readonly style="width:100%;height:110px;font-size:11px;border-radius:12px;border:2px solid var(--line);padding:8px;-webkit-user-select:text;user-select:text;word-break:break-all">${code}</textarea><div class="row"><button class="btn" id="cOk">Schließen</button><button class="btn pri" id="cCopy">Kopieren</button></div></div>`;
+  m.classList.remove('hidden');
+  m.onclick = async e => {
+    if (e.target.id === 'cCopy') {
+      let ok = false;
+      try { await navigator.clipboard.writeText(code); ok = true; } catch (err) { }
+      if (!ok) { const t = $('#codeBox'); t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch (err) { } }
+      toast(ok ? 'Code kopiert ✓' : 'Bitte den Code markieren und kopieren');
+    }
+    if (e.target.id === 'cOk') { m.classList.add('hidden'); m.onclick = null; }
+  };
+}
+function showImport() {
+  const m = $('#modal');
+  m.innerHTML = `<div class="gbox"><div class="emoji">📥</div><h2>Code laden</h2><p>Füge hier deinen Spielstand-Code ein. Achtung: Der jetzige Spielstand wird ersetzt.</p><textarea id="codeIn" placeholder="PFERD1:…" style="width:100%;height:110px;font-size:12px;border-radius:12px;border:2px solid var(--pink);padding:8px;-webkit-user-select:text;user-select:text"></textarea><div class="row"><button class="btn" id="iNo">Abbrechen</button><button class="btn pri" id="iOk">Laden</button></div></div>`;
+  m.classList.remove('hidden');
+  m.onclick = e => {
+    if (e.target.id === 'iNo') { m.classList.add('hidden'); m.onclick = null; }
+    if (e.target.id === 'iOk') {
+      const st = importCode($('#codeIn').value);
+      if (!st) { Snd.play('nope'); toast('Dieser Code passt nicht 🤔'); return; }
+      m.classList.add('hidden'); m.onclick = null;
+      restartWith(st); Snd.play('win'); toast(`Willkommen zurück, ${st.horse.name}! 🐴`);
+    }
+  };
+}
+window.saveNow = saveNow;
 
 // ---------- Zurück-Taste (Android) ----------
 window.pferdBack = function () {
@@ -2212,8 +2261,9 @@ function startMain(first) {
     setInterval(() => { applyDecay(); renderBars(); refreshHorses(); save(); }, 20000);
     setInterval(() => { if (Math.random() < 0.6) chatter(); }, 14000);
     setInterval(applyPhase, 60000);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); else { applyDecay(); renderBars(); refreshHorses(); renderGames(); } });
-    window.addEventListener('pagehide', saveNow);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(true); else { applyDecay(); renderBars(); refreshHorses(); renderGames(); } });
+    window.addEventListener('pagehide', () => saveNow(true));
+    window.addEventListener('beforeunload', () => saveNow(true));
   }
   if (first) {
     setTimeout(() => { say(`Hallo ${S.owner}! Ich bin ${S.horse.name}! 💕`, 3500); Snd.play('neigh'); }, 600);
@@ -2254,9 +2304,36 @@ function init() {
   $('#sheet .grab').parentElement.addEventListener('pointerdown', e => { if (e.target.closest('.grab, .sheethead')) gy = e.clientY; });
   window.addEventListener('pointerup', e => { if (gy != null && e.clientY - gy > 40) closeShop(); gy = null; });
 
-  if (!S.horse) { $('#main').classList.add('hidden'); openCreator(false); }
-  else startMain(false);
-  Cloud.init();
+  boot();
+}
+async function boot() {
+  if (Cloud.available()) {
+    $('#loading').classList.remove('hidden');
+    const took = await syncFromCloud(6000);
+    if (took) applyDecay();
+    $('#loading').classList.add('hidden');
+  }
+  if (!S.horse) {
+    $('#main').classList.add('hidden'); openCreator(false);
+    // Kommt die Cloud später doch noch mit einem Pferd an: übernehmen
+    if (Cloud.available() && !Cloud.ok) syncFromCloud(15000).then(took => { if (took && !$('#creator').classList.contains('hidden') && !C_edit) { applyDecay(); closeCreator(); startMain(false); toast('Dein Spielstand wurde geladen ☁️'); } });
+  } else { startMain(false); if (Cloud.ok) Cloud.push(); }
+}
+// Spielstand ersetzen (aus Code) und neu anzeigen
+function restartWith(st) {
+  S = Object.assign(defaultState(), st);
+  applyDecay(); saveNow(true);
+  if (!$('#creator').classList.contains('hidden')) { $('#creator').classList.add('hidden'); delete views.creator; }
+  startMain(false);
+}
+function exportCode() {
+  const json = JSON.stringify(S);
+  return 'PFERD1:' + btoa(unescape(encodeURIComponent(json)));
+}
+function importCode(code) {
+  code = String(code || '').trim().replace(/\s+/g, '');
+  if (!code.startsWith('PFERD1:')) return null;
+  try { const st = JSON.parse(decodeURIComponent(escape(atob(code.slice(7))))); return st && st.v && st.horse ? st : null; } catch (e) { return null; }
 }
 document.addEventListener('DOMContentLoaded', init);
 
