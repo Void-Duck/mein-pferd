@@ -376,7 +376,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 // WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
 // Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
@@ -384,6 +384,7 @@ const APP_VERSION = '1.4.0';
 
 // „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
 const CHANGELOG = [
+  { v: '1.5.0', items: ['🎵 Fröhliche Musik – jedes Spiel klingt ein bisschen anders', '🌙 Schlaflied mit leisem Schnarchen, wenn dein Pferd schläft', '🔊 Viele neue Geräusche: Striegeln, Waschen, Fressen, Trinken, Hufgetrappel, Springen', '2 neue Spiele: Stall ausmisten und Mähne flechten', 'Musik und Geräusche lassen sich in ⚙️ getrennt einstellen'] },
   { v: '1.4.0', items: ['Neuer Energie-Balken ⚡ – Minispiele machen müde', 'Ab 20 Uhr schläft dein Pferd im Stall 🌙 – tippe es an, um es zu wecken', 'Nickerchen im Stall: 😴-Knopf', 'Zucker & Leckerli geben Energie (je 5 pro Tag)', '6 neue Minispiele: Dressur-Takt, Ausritt, Fliegen verscheuchen, Lasso, Ringstechen, Wasserlauf'] },
   { v: '1.3.0', items: ['Updates kommen jetzt beim ersten Öffnen an', 'Automatische Sicherungen der letzten 3 Tage (⚙️ Einstellungen)'] },
 ];
@@ -588,6 +589,8 @@ const GAMES = [
   { id: 'lasso', energy: 15, name: 'Lasso', icon: '🤠', desc: 'Wirf das Lasso im richtigen Moment über den Pfosten.', color: '#E8590C' },
   { id: 'ring', energy: 15, name: 'Ringstechen', icon: '💍', desc: 'Stich mit der Lanze durch die baumelnden Ringe.', color: '#1C7ED6' },
   { id: 'fliegen', energy: 8, name: 'Fliegen verscheuchen', icon: '🪰', desc: 'Verscheuche die Fliegen – aber lass die Schmetterlinge in Ruhe!', color: '#94D82D' },
+  { id: 'misten', energy: 8, name: 'Stall ausmisten', icon: '🧹', desc: 'Zieh die Pferdeäpfel mit der Mistgabel in die Schubkarre.', color: '#A0703F' },
+  { id: 'flechten', energy: 3, name: 'Mähne flechten', icon: '🎀', desc: 'Merk dir die Strähnen-Reihenfolge und flechte einen schönen Zopf.', color: '#F783AC' },
   { id: 'wasser', energy: 8, name: 'Wasserlauf', icon: '💧', desc: 'Drehe die Rohre, damit das Wasser zur Tränke fließt.', color: '#22B8CF' },
 ];
 
@@ -1374,6 +1377,279 @@ function sceneSVG(id) {
 // kleines Vorschaubild einer Szene für den Shop
 function sceneThumb(id) { return sceneSVG(id); }
 
+// ===== Ton: Geräusche und Musik (alles selbst erzeugt, keine Dateien nötig) =====
+// Snd   – Geräusche (Snd.play('crunch') …) und Grundbausteine
+// Music – fröhliche Musik mit Abwandlungen pro Spiel und Schlaflied
+
+const Snd = {
+  ctx: null, master: null, sfx: null, mus: null, noiseBuf: null,
+  unlock() {
+    if (!this.ctx) {
+      // iPhone: auch bei Stummschalter abspielen (Safari 17+, sonst ohne Wirkung)
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+      const c = this.ctx;
+      const comp = c.createDynamicsCompressor();
+      comp.threshold.value = -16; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
+      this.master = c.createGain(); this.sfx = c.createGain(); this.mus = c.createGain();
+      this.sfx.connect(this.master); this.mus.connect(this.master); this.master.connect(comp); comp.connect(c.destination);
+      this.master.gain.value = 1.15;
+      const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.noiseBuf = buf;
+      this.applyVolumes();
+      Music.boot();
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  applyVolumes() {
+    if (!this.ctx || !S) return;
+    const t = this.ctx.currentTime;
+    this.sfx.gain.setTargetAtTime(S.sound !== false ? (S.sfxVol ?? 0.9) * 1.7 : 0, t, 0.05);
+    this.mus.gain.setTargetAtTime(S.musicOn !== false ? (S.musicVol ?? 0.6) * 0.55 : 0, t, 0.1);
+  },
+  ok() { return this.ctx && S && S.sound !== false; },
+  // Einzelton (für Geräusche)
+  tone(freq, dur, type = 'sine', vol = 0.15, slide = 0, delay = 0, dest) {
+    const c = this.ctx; if (!c) return;
+    if (!dest && !this.ok()) return;
+    const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(dest || this.sfx); o.start(t); o.stop(t + dur + 0.03);
+  },
+  // Rauschen durch einen Filter (für Kratzen, Plätschern, Knacken …)
+  noise(dur, vol = 0.12, f1 = 1200, f2 = 0, type = 'bandpass', delay = 0, q = 1, dest, absT) {
+    const c = this.ctx; if (!c) return;
+    if (!dest && !this.ok()) return;
+    const t = absT != null ? absT : c.currentTime + delay;
+    const src = c.createBufferSource(); src.buffer = this.noiseBuf;
+    const flt = c.createBiquadFilter(); flt.type = type; flt.Q.value = q; flt.frequency.setValueAtTime(f1, t); if (f2) flt.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, dur / 4)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(flt).connect(g).connect(dest || this.sfx); src.start(t, Math.random() * 1.5); src.stop(t + dur + 0.02);
+  },
+  play(name) {
+    if (!this.ok()) return;
+    const r = Math.random;
+    switch (name) {
+      case 'coin': this.tone(988, 0.08, 'square', 0.1); this.tone(1319, 0.22, 'square', 0.1, 0, 0.07); break;
+      case 'pop': this.tone(520, 0.1, 'sine', 0.28, 500); break;
+      case 'click': this.tone(700, 0.05, 'triangle', 0.12); break;
+      case 'flip': this.tone(880, 0.06, 'sine', 0.14, 200); break;
+      case 'nope': this.tone(330, 0.12, 'triangle', 0.18); this.tone(260, 0.2, 'triangle', 0.18, 0, 0.13); break;
+      case 'hurt': this.tone(220, 0.25, 'square', 0.13, -130); this.noise(0.15, 0.15, 400, 0, 'lowpass'); break;
+      case 'win': [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.2, 0, i * 0.1)); break;
+      case 'sparkle': [1568, 2093, 2637, 3136, 3951].forEach((f, i) => this.tone(f, 0.15, 'sine', 0.09, 0, i * 0.05)); break;
+      // Pflege
+      case 'brush': this.noise(0.16, 0.22 + r() * 0.06, 3400 + r() * 800, 1800, 'bandpass', 0, 2.5); this.noise(0.1, 0.1, 6000, 0, 'highpass', 0.05); break;
+      case 'brushSoft': this.noise(0.2, 0.18, 2200 + r() * 400, 1400, 'bandpass', 0, 1.5); break;
+      case 'brushGold': this.noise(0.16, 0.2, 3600, 2000, 'bandpass', 0, 2.5); this.tone(2093 + r() * 600, 0.15, 'sine', 0.07, 0, 0.03); break;
+      case 'splash': this.noise(0.4, 0.26, 2500, 500, 'bandpass', 0, 0.8); this.noise(0.25, 0.12, 900, 0, 'lowpass', 0.08); break;
+      case 'bubble': for (let i = 0; i < 2; i++) { const f = 500 + r() * 700; this.tone(f, 0.08, 'sine', 0.12, f * 0.9, i * 0.06 + r() * 0.04); } break;
+      // Futter
+      case 'crunch': for (let i = 0; i < 4; i++) { this.noise(0.06, 0.34, 2600 + r() * 1500, 0, 'highpass', i * 0.17 + r() * 0.03); this.noise(0.08, 0.2, 500, 0, 'lowpass', i * 0.17); } break;
+      case 'munch': for (let i = 0; i < 4; i++) this.noise(0.18, 0.2, 1200 + r() * 600, 600, 'bandpass', i * 0.22, 1.2); break;
+      case 'nom': [0, 0.18, 0.36].forEach((d, i) => { this.tone(300 + i * 60, 0.09, 'sine', 0.2, -80, d); this.noise(0.05, 0.12, 1500, 0, 'bandpass', d); }); break;
+      case 'slurp':
+        this.noise(0.45, 0.16, 800, 2400, 'bandpass', 0, 3);
+        for (let i = 0; i < 4; i++) { this.tone(240, 0.13, 'sine', 0.26, -110, 0.45 + i * 0.24); this.tone(600 + r() * 300, 0.05, 'sine', 0.07, 200, 0.5 + i * 0.24); }
+        break;
+      case 'eat': this.play('munch'); break;
+      // Pferd
+      case 'snort': this.noise(0.35, 0.28, 700, 300, 'bandpass', 0, 1.2); this.noise(0.2, 0.15, 1800, 0, 'bandpass', 0.05, 2); break;
+      case 'snore': {
+        const c = this.ctx, t = c.currentTime;
+        // einatmen: rauhes Brummen
+        const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(85, t + 1.0);
+        f.type = 'lowpass'; f.frequency.value = 320;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11, t + 0.7); g.gain.linearRampToValueAtTime(0.0001, t + 1.1);
+        o.connect(f).connect(g).connect(this.sfx); o.start(t); o.stop(t + 1.15);
+        this.noise(1.0, 0.06, 400, 0, 'lowpass', 0.05);
+        // ausatmen: leises Pusten
+        this.noise(1.1, 0.07, 1400, 700, 'bandpass', 1.3, 1);
+        this.tone(520, 0.8, 'sine', 0.025, -150, 1.4);
+        break;
+      }
+      case 'yawn': {
+        const c = this.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(320, t); o.frequency.linearRampToValueAtTime(460, t + 0.35); o.frequency.exponentialRampToValueAtTime(180, t + 1.0);
+        f.type = 'lowpass'; f.frequency.setValueAtTime(600, t); f.frequency.linearRampToValueAtTime(1500, t + 0.4); f.frequency.linearRampToValueAtTime(500, t + 1.0);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.2); g.gain.linearRampToValueAtTime(0.0001, t + 1.05);
+        o.connect(f).connect(g).connect(this.sfx); o.start(t); o.stop(t + 1.1);
+        break;
+      }
+      case 'neigh': {
+        const c = this.ctx, t = c.currentTime;
+        [1, 1.5].forEach((m, k) => {
+          const o = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain(), g = c.createGain(), flt = c.createBiquadFilter();
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(560 * m, t); o.frequency.linearRampToValueAtTime(980 * m, t + 0.18); o.frequency.exponentialRampToValueAtTime(360 * m, t + 1.05);
+          lfo.frequency.setValueAtTime(14, t); lfo.frequency.linearRampToValueAtTime(22, t + 1); lg.gain.value = 60 * m; lfo.connect(lg).connect(o.frequency);
+          flt.type = 'bandpass'; flt.frequency.value = 1500 * m; flt.Q.value = 1.2;
+          const v = k ? 0.06 : 0.16;
+          g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.06); g.gain.setValueAtTime(v, t + 0.75); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+          o.connect(flt).connect(g).connect(this.sfx); o.start(t); lfo.start(t); o.stop(t + 1.15); lfo.stop(t + 1.15);
+        });
+        this.noise(0.3, 0.1, 900, 400, 'bandpass', 1.0);
+        break;
+      }
+      // Bewegung
+      case 'clop': { const f = 820 + r() * 160; this.tone(f, 0.045, 'sine', 0.22, -300); this.noise(0.035, 0.16, 2200, 0, 'bandpass', 0, 3); this.tone(180, 0.06, 'sine', 0.12, -60); break; }
+      case 'jump': this.noise(0.38, 0.22, 500, 2600, 'bandpass', 0, 1.5); this.tone(300, 0.25, 'sine', 0.16, 420); break;
+      case 'land': this.tone(110, 0.14, 'sine', 0.35, -50); this.noise(0.1, 0.18, 300, 0, 'lowpass'); setTimeout(() => this.play('clop'), 70); break;
+      case 'knock': this.tone(520, 0.08, 'triangle', 0.25, -200); this.tone(390, 0.1, 'triangle', 0.2, -150, 0.09); this.noise(0.08, 0.15, 1800, 0, 'bandpass', 0, 2); break;
+      case 'scrape': this.noise(0.22, 0.2, 1800, 900, 'bandpass', 0, 2); break;
+      case 'plop': this.tone(180, 0.12, 'sine', 0.3, -80); this.noise(0.08, 0.15, 600, 0, 'lowpass'); break;
+      case 'swish': this.noise(0.22, 0.16, 900, 3000, 'bandpass', 0, 1.2); break;
+    }
+  },
+};
+document.addEventListener('pointerdown', () => Snd.unlock(), { capture: true });
+document.addEventListener('visibilitychange', () => { if (!Snd.ctx) return; if (document.hidden) Snd.ctx.suspend(); else Snd.ctx.resume(); });
+
+// ---------- Musik ----------
+const Music = (() => {
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const n = s => { const m = /^([A-G])([#b]?)(\d)$/.exec(s); return m ? 12 * (+m[3] + 1) + NOTE[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) : null; };
+  const bar = s => s.trim().split(/\s+/).map(x => x === '.' ? null : n(x));
+  const CH = { C: [60, 64, 67], G: [55, 59, 62], Am: [57, 60, 64], F: [53, 57, 60], Dm: [62, 65, 69], E: [52, 56, 59], Em: [52, 55, 59], Bb: [58, 62, 65], C7: [60, 64, 70] };
+
+  // Hauptmelodie (C-Dur, 8 Takte, 16 Schritte pro Takt)
+  const MAIN = [
+    'E5 . G5 . C6 . . . B5 . G5 . E5 . . .',
+    'D5 . G5 . B5 . . . A5 . G5 . D5 . . .',
+    'C5 . E5 . A5 . . . G5 . E5 . C5 . D5 .',
+    'F5 . E5 . D5 . C5 . A4 . . . . . . .',
+    'E5 . E5 . G5 . E5 . C6 . . . B5 . A5 .',
+    'G5 . . . D5 . G5 . B5 . A5 . G5 . . .',
+    'A5 . G5 . F5 . A5 . C6 . A5 . G5 . F5 .',
+    'E5 . D5 . . . B4 . D5 . . . G5 . . .',
+  ].map(bar);
+  const MAIN_CH = ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'];
+  // Walzer (3/4, 12 Schritte pro Takt) für die Dressur
+  const WALTZ = [
+    'G5 . . . E5 . . . G5 . . .', 'C6 . . . . . . . B5 . . .', 'A5 . . . F5 . . . A5 . . .', 'G5 . . . . . . . . . . .',
+    'E5 . . . F5 . . . G5 . . .', 'A5 . . . G5 . . . F5 . . .', 'E5 . . . D5 . . . G4 . . .', 'C5 . . . . . . . . . . .',
+  ].map(bar);
+  const WALTZ_CH = ['C', 'C', 'F', 'C', 'C', 'F', 'G', 'C'];
+  // Western (a-Moll) für Lasso & Hufeisenwerfen
+  const WEST = [
+    'A4 . . C5 E5 . . . D5 . C5 . A4 . . .', 'G4 . . B4 D5 . . . C5 . B4 . G4 . . .',
+    'F4 . . A4 C5 . . . E5 . D5 . C5 . . .', 'E5 . . . B4 . . . G#4 . . . E4 . . .',
+  ].map(bar);
+  const WEST_CH = ['Am', 'G', 'F', 'E'];
+  // Schlaflied (F-Dur, sehr langsam, Spieluhr)
+  const LULL = [
+    'A5 . . . F5 . . . C5 . . . F5 . . .', 'G5 . . . E5 . . . C5 . . . . . . .',
+    'A5 . . . Bb5 . . . C6 . . . A5 . . .', 'G5 . . . . . . . . . . . . . . .',
+    'F5 . . . A5 . . . G5 . . . E5 . . .', 'F5 . . . D5 . . . C5 . . . . . . .',
+    'D5 . . . E5 . . . F5 . . . G5 . . .', 'F5 . . . . . . . . . . . . . . .',
+  ].map(bar);
+  const LULL_CH = ['F', 'C', 'Bb', 'C', 'F', 'Dm', 'Bb', 'F'];
+
+  const SONGS = {
+    main: { bpm: 112, steps: 16, mel: MAIN, ch: MAIN_CH, tr: 0, lead: 'bell', drums: 'pop', bass: 'pluck' },
+    bouncy: { bpm: 128, steps: 16, mel: MAIN, ch: MAIN_CH, tr: 2, lead: 'marimba', drums: 'pop', bass: 'pluck' },
+    gallop: { bpm: 144, steps: 16, mel: MAIN, ch: MAIN_CH, tr: 5, lead: 'bell', drums: 'gallop', bass: 'gallop' },
+    calm: { bpm: 92, steps: 16, mel: MAIN, ch: MAIN_CH, tr: -3, lead: 'marimba', drums: 'soft', bass: 'soft', sparse: true },
+    waltz: { bpm: 90, steps: 12, mel: WALTZ, ch: WALTZ_CH, tr: 0, lead: 'bell', drums: 'waltz', bass: 'waltz' },
+    western: { bpm: 118, steps: 16, mel: WEST, ch: WEST_CH, tr: 0, lead: 'twang', drums: 'western', bass: 'western' },
+    lullaby: { bpm: 60, steps: 16, mel: LULL, ch: LULL_CH, tr: 0, lead: 'box', drums: 'none', bass: 'pad', snore: true },
+  };
+  const GAME_SONG = { springen: 'gallop', rennen: 'gallop', ausritt: 'gallop', ring: 'gallop', aepfel: 'bouncy', karotten: 'bouncy', fliegen: 'bouncy', misten: 'bouncy', dressur: 'waltz', lasso: 'western', werfen: 'western', memory: 'calm', quiz: 'calm', wasser: 'calm', flechten: 'calm', simon: null };
+
+  let cur = null, bus = null, step = 0, nextT = 0, timer = 0, want = 'main';
+  const ctx = () => Snd.ctx;
+
+  // ----- Instrumente -----
+  function env(g, t, a, v, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+  function osc(type, f, t, end, dest) { const o = ctx().createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.connect(dest); o.start(t); o.stop(end); return o; }
+  function bell(m, t, v, d = 0.9) {
+    const c = ctx(), f = mtof(m), g = c.createGain(); env(g, t, 0.005, v, d); g.connect(bus);
+    const car = osc('sine', f, t, t + d + 0.1, g);
+    const mod = c.createOscillator(), mg = c.createGain(); mod.frequency.value = f * 3.5; mg.gain.setValueAtTime(f * 1.4, t); mg.gain.exponentialRampToValueAtTime(1, t + d * 0.6);
+    mod.connect(mg).connect(car.frequency); mod.start(t); mod.stop(t + d + 0.1);
+    const g2 = c.createGain(); env(g2, t, 0.003, v * 0.25, d * 0.4); g2.connect(bus); osc('sine', f * 2, t, t + d, g2);
+  }
+  function box(m, t, v) { // Spieluhr: hell und sehr kurz
+    const c = ctx(), f = mtof(m), g = c.createGain(); env(g, t, 0.003, v, 1.6); g.connect(bus); osc('sine', f, t, t + 1.7, g);
+    const g2 = c.createGain(); env(g2, t, 0.002, v * 0.35, 0.5); g2.connect(bus); osc('sine', f * 3, t, t + 0.6, g2);
+  }
+  function marimba(m, t, v) {
+    const c = ctx(), f = mtof(m), g = c.createGain(); env(g, t, 0.004, v, 0.45); g.connect(bus); osc('sine', f, t, t + 0.5, g);
+    const g2 = c.createGain(); env(g2, t, 0.002, v * 0.3, 0.12); g2.connect(bus); osc('sine', f * 4, t, t + 0.15, g2);
+  }
+  function twang(m, t, v) {
+    const c = ctx(), f = mtof(m), g = c.createGain(), fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(2600, t); fl.frequency.exponentialRampToValueAtTime(500, t + 0.35);
+    env(g, t, 0.004, v, 0.5); fl.connect(g).connect(bus); osc('sawtooth', f, t, t + 0.55, fl);
+  }
+  function pluck(m, t, v, d = 0.28) {
+    const c = ctx(), f = mtof(m), g = c.createGain(), fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(1600, t); fl.frequency.exponentialRampToValueAtTime(220, t + d);
+    env(g, t, 0.005, v, d); fl.connect(g).connect(bus); osc('triangle', f, t, t + d + 0.05, fl);
+  }
+  function pad(notes, t, d, v) {
+    const c = ctx(), g = c.createGain(), fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 900;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + d * 0.3); g.gain.linearRampToValueAtTime(0.0001, t + d);
+    fl.connect(g).connect(bus);
+    notes.forEach(m => [-6, 6].forEach(cents => { const o = osc('triangle', mtof(m), t, t + d + 0.05, fl); o.detune.value = cents; }));
+  }
+  function noiseHit(t, v, f, type, d, q = 1) { Snd.noise(d, v, f, 0, type, 0, q, bus, t); }
+  function kick(t, v) { const c = ctx(), g = c.createGain(); env(g, t, 0.003, v, 0.2); g.connect(bus); const o = osc('sine', 140, t, t + 0.25, g); o.frequency.exponentialRampToValueAtTime(45, t + 0.15); }
+  function wood(t, v, f = 900) { const c = ctx(), g = c.createGain(); env(g, t, 0.002, v, 0.06); g.connect(bus); const o = osc('sine', f, t, t + 0.08, g); o.frequency.exponentialRampToValueAtTime(f * 0.75, t + 0.05); }
+
+  // ----- Ablauf -----
+  function playStep(S_, i, t, dur) {
+    const steps = S_.steps, b = Math.floor(i / steps) % S_.mel.length, s = i % steps;
+    const tr = S_.tr, chord = CH[S_.ch[b]] || CH.C, root = chord[0] + tr;
+    // Melodie
+    const m = S_.mel[b][s];
+    if (m != null && !(S_.sparse && s % 4 && Math.random() < 0.5)) {
+      const mm = m + tr;
+      if (S_.lead === 'bell') bell(mm, t, 0.16);
+      else if (S_.lead === 'marimba') marimba(mm, t, 0.2);
+      else if (S_.lead === 'twang') twang(mm, t, 0.11);
+      else if (S_.lead === 'box') box(mm, t, 0.1);
+    }
+    // Bass & Begleitung
+    if (S_.bass === 'pluck') { if (s === 0 || s === 8) pluck(root - 12, t, 0.32); if (s === 6 || s === 14) pluck(root, t, 0.16); if (s === 4 || s === 12) chord.forEach(x => marimba(x + tr + 12, t, 0.05)); }
+    else if (S_.bass === 'gallop') { if ([0, 3, 6, 8, 11, 14].includes(s)) pluck(root - 12 + (s % 8 === 6 ? 7 : 0), t, 0.26, 0.18); }
+    else if (S_.bass === 'soft') { if (s === 0) pluck(root - 12, t, 0.26, 0.6); if (s === 8) chord.forEach(x => marimba(x + tr, t, 0.05)); }
+    else if (S_.bass === 'waltz') { if (s === 0) pluck(root - 12, t, 0.34, 0.5); if (s === 4 || s === 8) chord.forEach(x => marimba(x + tr, t, 0.06)); }
+    else if (S_.bass === 'western') { if (s === 0 || s === 8) pluck(root - 12, t, 0.3, 0.3); if (s === 4 || s === 12) pluck(root - 5, t, 0.24, 0.3); }
+    else if (S_.bass === 'pad') { if (s === 0) { pad(chord.map(x => x + tr - 12), t, dur * steps * 1.05, 0.05); pluck(root - 12, t, 0.1, 1.5); } }
+    // Schlagzeug
+    const d = S_.drums;
+    if (d === 'pop') { if (s === 0 || s === 8) kick(t, 0.5); if (s === 4 || s === 12) noiseHit(t, 0.16, 1500, 'bandpass', 0.12, 0.8); if (s % 2 === 0) noiseHit(t, 0.05, 8000, 'highpass', 0.03); }
+    else if (d === 'gallop') { if (s === 0 || s === 8) kick(t, 0.45); if ([0, 3, 6, 8, 11, 14].includes(s)) wood(t, 0.12, 1000); if (s === 4 || s === 12) noiseHit(t, 0.13, 1500, 'bandpass', 0.1, 0.8); }
+    else if (d === 'soft') { if (s === 0) kick(t, 0.28); if (s % 4 === 2) noiseHit(t, 0.04, 6000, 'bandpass', 0.05, 1); }
+    else if (d === 'waltz') { if (s === 0) kick(t, 0.3); if (s === 4 || s === 8) noiseHit(t, 0.05, 7000, 'highpass', 0.04); }
+    else if (d === 'western') { if (s % 4 === 0) wood(t, 0.15, 750); if (s % 4 === 2) wood(t, 0.1, 1050); if (s === 0) kick(t, 0.35); }
+    // Leises Schnarchen im Schlaflied
+    if (S_.snore && s === 0 && b % 2 === 1 && Snd.ok()) Snd.play('snore');
+  }
+  function tick() {
+    const c = ctx(); if (!c || !cur) return;
+    const S_ = SONGS[cur], dur = 60 / S_.bpm / (S_.steps === 12 ? 4 : 4);
+    while (nextT < c.currentTime + 0.15) { playStep(S_, step, nextT, dur); nextT += dur; step++; }
+  }
+  function startSong(name) {
+    const c = ctx(); if (!c) return;
+    if (bus) { const old = bus; old.gain.setTargetAtTime(0, c.currentTime, 0.15); setTimeout(() => { try { old.disconnect(); } catch (e) { } }, 1200); }
+    cur = name;
+    if (!name) { bus = null; return; }
+    bus = c.createGain(); bus.gain.setValueAtTime(0, c.currentTime); bus.gain.setTargetAtTime(1, c.currentTime + 0.05, 0.2); bus.connect(Snd.mus);
+    step = 0; nextT = c.currentTime + 0.1;
+  }
+  return {
+    boot() { if (!timer) timer = setInterval(tick, 25); this.set(want, true); },
+    set(name, force) { want = name; if (!ctx()) return; if (name === cur && !force) return; startSong(name); },
+    forGame(id) { this.set(id in GAME_SONG ? GAME_SONG[id] : 'bouncy'); },
+    current: () => cur,
+  };
+})();
+
 // ===== Pferde-Tamagotchi: Spiellogik & Oberfläche =====
 
 const KEY = 'pferdeTamagotchi.v1';
@@ -1390,6 +1666,7 @@ function defaultState() {
     stats: { hunger: 80, fun: 80, clean: 85, energy: 100 },
     coins: 30, owned: [], scene: 'weide', last: Date.now(), best: {}, lastBonus: '',
     sound: true, sparkleUntil: 0, tutorial: false, gamesPlayed: 0, dayNight: true, toolSel: {},
+    musicOn: true, musicVol: 0.6, sfxVol: 0.9,
     sleepTime: true, napping: false, napReturn: null, awakeUntil: 0, sweets: { day: '', zucker: 0, leckerli: 0 },
   };
 }
@@ -1565,6 +1842,7 @@ function wakeHorse(v, then) {
   if (isBedtime()) S.awakeUntil = Date.now() + REST_AFTER_WAKE;
   else S.napping = false;
   save();
+  setTimeout(musicAuto, 2500);
   v.wakeUp(() => {
     if (wasNap && S.napReturn) { S.scene = S.napReturn; S.napReturn = null; save(); renderScene(); setTimeout(layout, 30); }
     then && then();
@@ -1576,7 +1854,7 @@ function goToSleep() {
   Snd.play('click');
   if (isBedtime()) { S.awakeUntil = 0; save(); refreshHorses(); updateSleepUI(); say('Gute Nacht… 😴', 1800); return; }
   if (S.scene !== 'stall') { S.napReturn = S.scene; S.scene = 'stall'; renderScene(); setTimeout(layout, 30); }
-  S.napping = true; save(); refreshHorses(); updateSleepUI();
+  S.napping = true; save(); refreshHorses(); updateSleepUI(); musicAuto();
   toast('Psst… 😴 Im Stall schläft dein Pferd und tankt doppelt so schnell Energie. Antippen weckt es.', 3500);
 }
 function updateSleepUI() {
@@ -1590,8 +1868,15 @@ function updateSleepUI() {
   b.classList.toggle('hidden', !here || st === 'night' || st === 'nap');
   b.innerHTML = st === 'nightAwake' ? '🛏️<span>Ins Bett</span>' : '😴<span>Schlafen</span>';
 }
+// Welche Musik passt gerade? (Spiel → eigene Abwandlung, schlafendes Pferd → Schlaflied)
+function musicAuto() {
+  if (!$('#game').classList.contains('hidden')) return;
+  const sleeping = S.horse && isAsleep() && !$('#main').classList.contains('hidden') && (panel === 2 || (panel === 1 && horseHere()));
+  Music.set(sleeping ? 'lullaby' : 'main');
+}
 let lastSleepKey = '';
 function sleepTick() {
+  musicAuto();
   if (!S.horse || $('#main').classList.contains('hidden')) return;
   if (!isBedtime()) visitStall = false;
   if (isBedtime() && S.napping) { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } save(); }
@@ -1674,58 +1959,7 @@ function toolIcon(u, size = 28) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 28 28"><path d="M7,25 L7,12 Q7,4 14,4 Q21,4 21,11 L21,25 Z" fill="${c}"/><path d="M21,14 Q26,12 25,17 L21,20Z" fill="${c}"/><rect x="6" y="22" width="16" height="4" rx="2" fill="${shade(c, -0.2)}"/>${dots}</svg>`;
 }
 
-// ---------- Ton ----------
-const Snd = {
-  ctx: null,
-  unlock() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
-    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
-  },
-  tone(freq, dur, type = 'sine', vol = 0.15, slide = 0, delay = 0) {
-    const c = this.ctx; if (!c || !S.sound) return;
-    const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
-    o.type = type; o.frequency.setValueAtTime(freq, t);
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
-  },
-  noise(dur, vol = 0.12, f1 = 1200, f2 = 0, type = 'bandpass', delay = 0) {
-    const c = this.ctx; if (!c || !S.sound) return;
-    const t = c.currentTime + delay, len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    const src = c.createBufferSource(); src.buffer = buf;
-    const flt = c.createBiquadFilter(); flt.type = type; flt.frequency.setValueAtTime(f1, t); if (f2) flt.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(flt).connect(g).connect(c.destination); src.start(t); src.stop(t + dur);
-  },
-  play(name) {
-    if (!this.ctx || !S.sound) return;
-    switch (name) {
-      case 'coin': this.tone(988, 0.08, 'square', 0.07); this.tone(1319, 0.18, 'square', 0.07, 0, 0.07); break;
-      case 'pop': this.tone(520, 0.1, 'sine', 0.18, 500); break;
-      case 'click': this.tone(700, 0.05, 'triangle', 0.08); break;
-      case 'eat': for (let i = 0; i < 3; i++) this.noise(0.07, 0.2, 900, 0, 'lowpass', i * 0.16); break;
-      case 'splash': this.noise(0.35, 0.12, 2500, 600, 'bandpass'); break;
-      case 'brush': this.noise(0.12, 0.05, 4000, 2500, 'highpass'); break;
-      case 'jump': this.tone(300, 0.22, 'sine', 0.16, 500); break;
-      case 'hurt': this.tone(220, 0.25, 'square', 0.08, -130); break;
-      case 'nope': this.tone(330, 0.12, 'triangle', 0.1); this.tone(260, 0.18, 'triangle', 0.1, 0, 0.13); break;
-      case 'win': [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, 'triangle', 0.14, 0, i * 0.11)); break;
-      case 'flip': this.tone(880, 0.06, 'sine', 0.08, 200); break;
-      case 'sparkle': [1568, 2093, 2637, 3136].forEach((f, i) => this.tone(f, 0.12, 'sine', 0.05, 0, i * 0.06)); break;
-      case 'neigh': {
-        const c = this.ctx, t = c.currentTime, o = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain(), g = c.createGain(), flt = c.createBiquadFilter();
-        o.type = 'sawtooth'; o.frequency.setValueAtTime(620, t); o.frequency.linearRampToValueAtTime(900, t + 0.15); o.frequency.exponentialRampToValueAtTime(380, t + 1.0);
-        lfo.frequency.value = 16; lg.gain.value = 55; lfo.connect(lg).connect(o.frequency);
-        flt.type = 'lowpass'; flt.frequency.value = 2200;
-        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.06); g.gain.setValueAtTime(0.09, t + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
-        o.connect(flt).connect(g).connect(c.destination); o.start(t); lfo.start(t); o.stop(t + 1.1); lfo.stop(t + 1.1);
-        break;
-      }
-    }
-  },
-};
-document.addEventListener('pointerdown', () => Snd.unlock(), { capture: true });
+// ---------- Ton: siehe audio.js (Snd, Music) ----------
 
 // ---------- kleine Helfer ----------
 let toastT = 0;
@@ -1823,7 +2057,7 @@ class HorseView {
     this.waking = true;
     const steps = [
       [{ pose: 'lie', eyes: 'open', sleepy: true, zzz: false }, 650, () => Snd.play('pop')],
-      [{ pose: 'lie', eyes: 'closed', yawn: true, zzz: false }, 900, () => Snd.tone(420, 0.7, 'sine', 0.08, -200)],
+      [{ pose: 'lie', eyes: 'closed', yawn: true, zzz: false }, 1000, () => Snd.play('yawn')],
       [{ pose: 'lie', eyes: 'open', zzz: false }, 350, null],
       [{ pose: 'stand', eyes: 'closed' }, 300, () => this.anim('hop', 700)],
       [{ pose: 'stand' }, 0, () => { this.anim('shiver', 1000); Snd.play('neigh'); }],
@@ -1907,6 +2141,7 @@ function renderBars() {
 
 function goPanel(i, instant) {
   panel = clamp(i, 0, 2);
+  setTimeout(musicAuto, 0);
   const tr = $('#track');
   if (instant) tr.classList.add('dragging');
   tr.style.transform = `translateX(${-panel * 33.3334}%)`;
@@ -2059,12 +2294,12 @@ function setupCare() {
           const bc = up.color === 'rainbow' ? `hsla(${Math.floor(Math.random() * 360)},90%,70%,.75)` : up.id === 'schwamm_bluete' ? 'rgba(255,150,200,.7)' : 'rgba(170,220,255,.55)';
           fx('bubbleFx', e.clientX + (Math.random() * 30 - 15), e.clientY + (Math.random() * 20 - 10), '', { '--s': (10 + Math.random() * 20) + 'px', '--dx': (Math.random() * 30 - 15) + 'px', '--bc': bc });
         }
-        if (Math.random() < 0.15) Snd.play('splash');
+        if (Math.random() < 0.18) Snd.play('splash'); else Snd.play('bubble');
         gainClean(1.3 * pw, 0);
       } else if (tool === 'buerste') {
         const gold = up.id === 'buerste_gold';
         fx('spark', e.clientX, e.clientY, Math.random() < 0.5 ? '✦' : '·', { '--dx': (Math.random() * 40 - 20) + 'px', '--dy': (-10 - Math.random() * 30) + 'px', color: gold ? '#FFC107' : up.id === 'buerste_weich' ? '#8FC8FF' : '#FFD43B' });
-        if (gold && Math.random() < 0.2) Snd.play('sparkle'); else Snd.play('brush');
+        Snd.play(gold ? 'brushGold' : up.id === 'buerste_weich' ? 'brushSoft' : 'brush');
         gainClean(0.6 * pw, 0.35 * pw);
       }
     }
@@ -2096,7 +2331,8 @@ function pet(x, y) {
   if (petLog.length > 14 + Math.round(pw * 4)) { say('Genug geknuddelt! 😄', 1600); return; }
   change({ fun: Math.round(3 * pw) });
   Snd.play('pop');
-  if (Math.random() < 0.25) { Snd.play('neigh'); views.center.anim('hop', 750); }
+  if (Math.random() < 0.22) { Snd.play('neigh'); views.center.anim('hop', 750); }
+  else if (Math.random() < 0.2) Snd.play('snort');
   if (Math.random() < 0.3) say(['Hihi! 😊', 'Das ist schön!', 'Mehr! 💕', 'Kraul weiter!'][Math.floor(Math.random() * 4)], 1500);
 }
 
@@ -2107,6 +2343,12 @@ function renderFood() {
     const left = f.sweet ? SWEETS_PER_DAY - (S.sweets[f.id] || 0) : null;
     return `<button class="food ${f.price > S.coins || left === 0 ? 'poor' : ''}" data-food="${f.id}"><div class="fi">${f.icon}</div><div class="fn">${f.name}</div><div class="fs">🍎+${f.hunger}${f.fun ? ' 😄+' + f.fun : ''}${f.energy ? ' ⚡+' + f.energy : ''}</div>${f.sweet ? `<div class="fs">noch ${left}× heute</div>` : ''}<div class="fp ${f.price ? '' : 'free'}">${f.price ? f.price + ' 🪙' : 'Gratis'}</div></button>`;
   }).join('');
+}
+function foodSound(id) {
+  if (id === 'wasser') return 'slurp';
+  if (['karotte', 'apfel', 'banane', 'melone'].includes(id)) return 'crunch';
+  if (['zucker', 'leckerli', 'kuchen'].includes(id)) return 'nom';
+  return 'munch';
 }
 function sweetsReset() {
   if (!S.sweets || S.sweets.day !== today()) S.sweets = { day: today(), zucker: 0, leckerli: 0 };
@@ -2137,7 +2379,7 @@ function feed(id, btn) {
   setTimeout(() => {
     v.chew = true; v.render();
     v.anim('eating', 2100);
-    Snd.play('eat'); setTimeout(() => Snd.play('eat'), 700);
+    const fs = foodSound(f.id); Snd.play(fs); if (fs !== 'slurp') setTimeout(() => Snd.play(fs), 800);
     plusText(m.x, m.y - 50, `🍎+${f.hunger}${f.fun ? '  😄+' + f.fun : ''}${f.energy ? '  ⚡+' + f.energy : ''}`);
     change({ hunger: f.hunger, fun: f.fun, energy: f.energy || 0 });
     sayFood(f.text);
@@ -2411,8 +2653,14 @@ function closeCreator() { $('#creator').classList.add('hidden'); delete views.cr
 async function openSettings() {
   Snd.play('click');
   const m = $('#modal');
+  setTimeout(() => {
+    const mv = $('#sMusVol'), sv = $('#sSfxVol');
+    if (mv) mv.oninput = () => { S.musicVol = +mv.value; Snd.applyVolumes(); save(); };
+    if (sv) { sv.oninput = () => { S.sfxVol = +sv.value; Snd.applyVolumes(); save(); }; sv.onchange = () => Snd.play('coin'); }
+  }, 0);
   m.innerHTML = `<div class="gbox" style="text-align:left"><h2 style="text-align:center">⚙️ Einstellungen</h2>
-    <div class="setrow">Ton <button class="toggle ${S.sound ? 'on' : ''}" id="sSound"></button></div>
+    <div class="setrow">🎵 Musik <span style="display:flex;align-items:center;gap:8px"><input type="range" id="sMusVol" min="0" max="1" step="0.05" value="${S.musicVol ?? 0.6}" style="width:90px"><button class="toggle ${S.musicOn !== false ? 'on' : ''}" id="sMusic"></button></span></div>
+    <div class="setrow">🔊 Geräusche <span style="display:flex;align-items:center;gap:8px"><input type="range" id="sSfxVol" min="0" max="1" step="0.05" value="${S.sfxVol ?? 0.9}" style="width:90px"><button class="toggle ${S.sound ? 'on' : ''}" id="sSound"></button></span></div>
     <div class="setrow">Tag & Nacht nach Uhrzeit <button class="toggle ${S.dayNight ? 'on' : ''}" id="sDay"></button></div>
     <div class="setrow">Schlafenszeit 20–7 Uhr <button class="toggle ${S.sleepTime !== false ? 'on' : ''}" id="sSleep"></button></div>
     <div class="setrow">Dein Name <input id="sOwner" maxlength="14" value="${esc(S.owner)}"></div>
@@ -2423,7 +2671,8 @@ async function openSettings() {
     <div class="row"><button class="btn pri" id="sOk">Fertig</button></div></div>`;
   m.classList.remove('hidden');
   m.onclick = async e => {
-    if (e.target.id === 'sSound') { S.sound = !S.sound; e.target.classList.toggle('on', S.sound); Snd.unlock(); Snd.play('pop'); save(); }
+    if (e.target.id === 'sSound') { S.sound = !S.sound; e.target.classList.toggle('on', S.sound); Snd.unlock(); Snd.applyVolumes(); Snd.play('pop'); save(); }
+    if (e.target.id === 'sMusic') { S.musicOn = S.musicOn === false; e.target.classList.toggle('on', S.musicOn); Snd.unlock(); Snd.applyVolumes(); save(); }
     if (e.target.id === 'sSleep') { S.sleepTime = S.sleepTime === false; e.target.classList.toggle('on', S.sleepTime); Snd.play('pop'); save(); lastSleepKey = ''; sleepTick(); }
     if (e.target.id === 'sDay') { S.dayNight = !S.dayNight; e.target.classList.toggle('on', S.dayNight); applyPhase(); Snd.play('pop'); save(); }
     if (e.target.id === 'sOk') {
@@ -2739,6 +2988,7 @@ const Games = (() => {
     const g = GAMES.find(x => x.id === id);
     Snd.play('click');
     closeShop();
+    Music.forGame(id);
     $('#game').classList.remove('hidden');
     $('#gTitle').textContent = g.icon + ' ' + g.name;
     area().innerHTML = '';
@@ -2805,6 +3055,7 @@ const Games = (() => {
     area().innerHTML = '';
     $('#game').classList.add('hidden');
     renderGames(); renderBars(); refreshHorses(); renderFood();
+    musicAuto();
     if (!silent) Snd.play('click');
   }
   async function requestClose() {
@@ -2876,7 +3127,7 @@ const Games = (() => {
       t += dt; speed = Math.min(W * 1.15, W * 0.5 + t * W * 0.012);
       dist += speed * dt;
       // Physik
-      vy -= g * dt; y = Math.max(0, y + vy * dt); if (y === 0 && vy < 0) vy = 0;
+      const wasAir = y > 0; vy -= g * dt; y = Math.max(0, y + vy * dt); if (y === 0 && vy < 0) vy = 0; if (wasAir && y === 0) Snd.play('land');
       inv = Math.max(0, inv - dt);
       nextObs -= speed * dt;
       if (nextObs <= 0) { spawn(); nextObs = W * (0.55 + Math.random() * 0.6) * (speed / (W * 0.5)) * 0.85; }
@@ -2885,7 +3136,7 @@ const Games = (() => {
       obs.forEach(o => {
         o.x -= speed * dt;
         if (!o.hit && !o.passed && o.x < bx2 - 6 && o.x + o.w > bx1 + 6 && bBot > gy - o.h + 4) {
-          o.hit = true;
+          o.hit = true; Snd.play('knock');
           if (inv <= 0) { lives--; inv = 1.3; Snd.play('hurt'); hud('🏁 ' + cleared, '❤️'.repeat(lives) + '🤍'.repeat(3 - lives)); if (lives <= 0) { setTimeout(() => finish('springen', cleared, Math.round(cleared * 0.8) + coins, `${cleared} Hindernisse geschafft · ${coins} Münzen gesammelt`), 400); cur.paused = true; } }
         }
         if (!o.passed && o.x + o.w < bx1) { o.passed = true; if (!o.hit) { cleared++; hud('🏁 ' + cleared, '❤️'.repeat(lives) + '🤍'.repeat(3 - lives)); parts.push({ x: hx + hw * 0.5, y: gy - y - hh * 0.6, t: 0, txt: '+1' }); } }
@@ -2896,7 +3147,7 @@ const Games = (() => {
         if (!cn.got && cn.x > bx1 - 10 && cn.x < bx2 + 10 && cn.y > bTop - 30 - hh * 0.2 && cn.y < bBot) { cn.got = true; coins++; Snd.play('coin'); }
       });
       // Animation
-      ft += dt; if (ft > 0.11) { ft = 0; frame ^= 1; }
+      ft += dt; if (ft > 0.11) { ft = 0; frame ^= 1; if (y <= 1) Snd.play('clop'); }
       // Zeichnen
       sky(ctx, W, H, t);
       clouds.forEach(cl => { cl[0] -= speed * 0.08 * dt; if (cl[0] < -80) cl[0] = W + 80; cloud(ctx, cl[0], cl[1], cl[2]); });
@@ -2948,7 +3199,7 @@ const Games = (() => {
       const prev = x; x += (tx - x) * Math.min(1, dt * 12);
       const vx = (x - prev) / Math.max(dt, 0.001);
       if (Math.abs(vx) > 30) { flip = vx < 0; moving = 0.15; } else moving -= dt;
-      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; if (moving > 0) Snd.play('clop'); }
       const lvl = 1 + t / 25;
       spawnT -= dt;
       if (spawnT <= 0) { spawnT = Math.max(0.32, 0.95 / lvl) * (0.7 + Math.random() * 0.6); const k = pick(); items.push({ k, x: 20 + Math.random() * (W - 40), y: -30, v: H * (0.22 + Math.random() * 0.12) * lvl, rot: Math.random() * 6 }); }
@@ -3115,7 +3366,7 @@ const Games = (() => {
           setTimeout(() => finish('rennen', place, coins, place === 1 ? `🥇 ${S.horse.name} hat gewonnen! Zeit: ${t.toFixed(1)} Sek.` : `Platz ${place} · Zeit: ${t.toFixed(1)} Sek.`), 700);
         }
       }
-      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; if (t >= 0 && me.speed > 0.02 && me.pos < 1) Snd.play('clop'); }
       // Zeichnen
       sky(ctx, W, H, t, '#8FD3FF', '#E9F8FF');
       cloud(ctx, W * 0.2, H * 0.07, 0.8); cloud(ctx, W * 0.75, H * 0.11, 0.7);
@@ -3410,7 +3661,7 @@ const Games = (() => {
         }
       });
       for (let i = objs.length - 1; i >= 0; i--) if (objs[i].x < -60 || (objs[i].gone && !objs[i].kind.bad)) objs.splice(i, 1);
-      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; Snd.play('clop'); }
       K.hud('🌼 ' + score, '❤️'.repeat(Math.max(0, lives)) + '🤍'.repeat(3 - Math.max(0, lives)) + ' ⏱ ' + Math.max(0, Math.ceil(60 - t)));
       // Hintergrund
       K.sky(ctx, W, H, t, '#86CDF4', '#E2F4FF');
@@ -3468,7 +3719,7 @@ const Games = (() => {
     K.loop(dt => {
       t += dt;
       // Metronom & Trab im Takt
-      if (t - lastBeat >= 0.66) { lastBeat = t; frame ^= 1; Snd.tone(1200, 0.03, 'square', 0.025); }
+      if (t - lastBeat >= 0.66) { lastBeat = t; frame ^= 1; Snd.play('clop'); }
       for (const n of notes) if (!n.done && t - n.time > 0.22) { n.done = true; n.miss = true; combo = 0; fb = 'Daneben'; fbT = 0.5; }
       const left = notes.filter(n => !n.done).length;
       K.hud('🎶 ' + score, `🔥 ${combo} · noch ${left}`);
@@ -3660,7 +3911,7 @@ const Games = (() => {
       if (nextT <= 0 && spawned < total) { spawned++; nextT = 1.5 + Math.random() * 0.8 - Math.min(0.5, t * 0.01); rings.push({ x: W + 40, y: gy - hw * (0.55 + Math.random() * 0.8), r: Math.max(16, hw * 0.12), gold: Math.random() < 0.2, done: false }); }
       rings.forEach(r => { if (r.hit) { r.x = tipX; r.y = tipY(); } else r.x -= speed * dt; if (!r.done && r.x < tipX - r.r * 1.5) { r.done = true; } });
       for (let i = rings.length - 1; i >= 0; i--) if (rings[i].x < -50) rings.splice(i, 1);
-      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; Snd.play('clop'); }
       K.hud('💍 ' + score, `Ring ${Math.min(total, spawned)}/${total}`);
       if (spawned >= total && rings.every(r => r.done) && !done) { done = true; C().paused = true; setTimeout(() => K.finish('ring', score, score, `${taken} von ${total} Ringen gestochen`), 600); }
       // Turnierplatz
@@ -3772,7 +4023,141 @@ const Games = (() => {
     return { stop() { a.onpointerdown = null; } };
   }
 
-  Object.assign(Games.FNS, { ausritt: Ausritt, dressur: Dressur, fliegen: Fliegen, lasso: Lasso, ring: Ring, wasser: Wasser });
+
+  // ---------- Stall ausmisten ----------
+  function Misten() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const floorY = H * 0.34, img = K.horseImg('stand'), hw = Math.min(W * 0.34, H * 0.22);
+    const barrow = { x: W * 0.62, y: H * 0.74, w: W * 0.34, h: H * 0.13 };
+    let t = 0, score = 0, fill = 0, spawnT = 0.2, grab = null, done = false;
+    const piles = [];
+    const spawn = () => {
+      if (piles.length >= 8) return;
+      for (let k = 0; k < 10; k++) {
+        const x = W * 0.08 + Math.random() * W * 0.84, y = floorY + H * 0.08 + Math.random() * (barrow.y - floorY - H * 0.14);
+        if (x > barrow.x - 30 && y > barrow.y - 50) continue;
+        if (piles.some(p => Math.hypot(p.x - x, p.y - y) < 60)) continue;
+        piles.push({ x, y, gold: Math.random() < 0.1, born: t }); return;
+      }
+    };
+    const pos = e => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const down = e => {
+      e.preventDefault(); if (done || C().paused) return;
+      const p = pos(e);
+      let best = null, bd = 52;
+      for (const q of piles) { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = q; } }
+      if (best) { grab = best; grab.ox = best.x - p.x; grab.oy = best.y - p.y; Snd.play('scrape'); try { c.setPointerCapture(e.pointerId); } catch (err) { } }
+    };
+    const move = e => { if (!grab) return; const p = pos(e); grab.x = p.x + grab.ox; grab.y = p.y + grab.oy; };
+    const up = () => {
+      if (!grab) return;
+      const g = grab; grab = null;
+      if (g.x > barrow.x - 10 && g.x < barrow.x + barrow.w + 10 && g.y > barrow.y - 40 && g.y < barrow.y + barrow.h) {
+        piles.splice(piles.indexOf(g), 1);
+        const p = g.gold ? 3 : 1; score += p; fill = Math.min(1, fill + 0.06);
+        Snd.play(g.gold ? 'sparkle' : 'plop'); pop(barrow.x + barrow.w / 2, barrow.y - 30, '+' + p);
+      }
+    };
+    c.addEventListener('pointerdown', down); c.addEventListener('pointermove', move); c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+    K.loop(dt => {
+      t += dt;
+      if (t >= 45 && !done) { done = true; C().paused = true; setTimeout(() => K.finish('misten', score, score, `${score} Pferdeäpfel weggeräumt`), 300); }
+      spawnT -= dt;
+      if (spawnT <= 0) { spawnT = Math.max(0.6, 1.4 - t * 0.02); spawn(); if (t < 1) { spawn(); spawn(); spawn(); } }
+      K.hud('🧹 ' + score, '⏱ ' + Math.max(0, Math.ceil(45 - t)));
+      // Stall
+      ctx.fillStyle = '#B07B48'; ctx.fillRect(0, 0, W, floorY);
+      for (let x = 0; x < W; x += 36) { ctx.fillStyle = x % 72 ? '#A87444' : '#B8834F'; ctx.fillRect(x, 0, 34, floorY); }
+      ctx.fillStyle = '#7A5230'; ctx.fillRect(0, floorY - 10, W, 12);
+      ctx.fillStyle = '#E8C766'; ctx.fillRect(0, floorY, W, H - floorY);
+      for (let i = 0; i < 70; i++) { const x = (i * 97) % W, y = floorY + ((i * 53) % (H - floorY)); ctx.strokeStyle = '#C9A440'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 10, y + (i % 3) - 1); ctx.stroke(); }
+      K.drawHorse(ctx, img, W * 0.02, floorY + hw * 0.45, hw);
+      // Schubkarre
+      const b = barrow;
+      ctx.fillStyle = '#2F9E44'; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + b.w, b.y); ctx.lineTo(b.x + b.w * 0.85, b.y + b.h); ctx.lineTo(b.x + b.w * 0.15, b.y + b.h); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6B4423'; ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + 4, b.w * 0.45 * (0.3 + fill * 0.7), 6 + fill * 10, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#343A40'; ctx.beginPath(); ctx.arc(b.x + b.w * 0.5, b.y + b.h + 8, 12, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#8B5A2B'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(b.x + b.w, b.y + b.h * 0.4); ctx.lineTo(b.x + b.w + 18, b.y + b.h * 0.9); ctx.stroke();
+      // Haufen
+      for (const q of piles) {
+        if (q !== grab && Math.sin((t + q.born) * 6) > 0.6) K.emoji(ctx, '🪰', q.x + 22, q.y - 26, 16);
+        if (q === grab) { ctx.strokeStyle = '#868E96'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(q.x + 30, q.y + 60); ctx.lineTo(q.x + 4, q.y + 10); ctx.stroke(); [-12, 0, 12].forEach(d => { ctx.beginPath(); ctx.moveTo(q.x + d, q.y + 14); ctx.lineTo(q.x + d, q.y - 8); ctx.stroke(); }); }
+        K.emoji(ctx, q.gold ? '🪙' : '💩', q.x, q.y, q.gold ? 34 : 40);
+      }
+      drawPops(ctx, dt);
+      if (t < 2.5) { ctx.globalAlpha = Math.min(1, 2.5 - t); big(ctx, 'In die Schubkarre ziehen!', W / 2, H * 0.2, W * 0.06); ctx.globalAlpha = 1; }
+    });
+    return { stop() { c.removeEventListener('pointerdown', down); c.removeEventListener('pointermove', move); c.removeEventListener('pointerup', up); } };
+  }
+
+  // ---------- Mähne flechten ----------
+  function Flechten() {
+    const a = K.area();
+    a.style.background = 'linear-gradient(180deg,#FFE3F1,#FFF4E6)';
+    const maneCol = (() => { const m = byId(MANE_COLORS, S.horse.mane || 'natur'); return m.color && m.color !== 'rainbow' ? m.color : byId(COATS, S.horse.coat).mane; })();
+    const strands = [{ c: maneCol, f: 523, name: 'Links' }, { c: '#FF6FAE', f: 659, name: 'Mitte' }, { c: '#4D96FF', f: 784, name: 'Rechts' }];
+    const ROUNDS = 8;
+    let round = 0, seq = [], inp = 0, accept = false, lives = 3, timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+    const head = horseSVG(Object.assign({}, S.horse, { maneStyle: 'zoepfe' }), { anim: false, mood: 'happy' });
+    const g = horseSVG.geo, x0 = 170 + (g.hx - g.R * 2.4 - 170) * g.scale, y0 = 285 + (g.hy - g.R * 1.5 - 285) * g.scale, sz = g.R * 4 * g.scale;
+    const headCrop = head.replace('viewBox="0 -60 340 360"', `viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${sz.toFixed(1)} ${sz.toFixed(1)}"`);
+    const braidSVG = k => {
+      let s = `<svg viewBox="0 0 60 ${20 + ROUNDS * 22}" width="70" height="${Math.min(260, 40 + ROUNDS * 26)}">`;
+      for (let i = 0; i < k; i++) { const c = strands[i % 3].c, y = 14 + i * 22, x = i % 2 ? 36 : 24; s += `<ellipse cx="${x}" cy="${y}" rx="14" ry="12" transform="rotate(${i % 2 ? 30 : -30} ${x} ${y})" fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width="1.5"/>`; }
+      if (k >= ROUNDS) s += `<path d="M22,${14 + k * 22} l8,-6 l8,6 l-8,6 Z" fill="#FF6FAE"/>`;
+      return s + '</svg>';
+    };
+    a.innerHTML = `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:8px">
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:min(46vw,220px);height:min(46vw,220px);border-radius:30px;overflow:hidden;background:#fff;box-shadow:0 4px 0 rgba(0,0,0,.08)">${headCrop}</div><div id="fBraid"></div></div>
+      <div id="fMsg" style="font-weight:900;font-size:20px;color:#3A2D4A;min-height:28px;text-align:center">Schau genau hin…</div>
+      <div style="display:flex;gap:10px;width:100%;max-width:440px">${strands.map((st, i) => `<button data-s="${i}" style="flex:1;height:min(30vh,170px);border-radius:24px;background:#fff;box-shadow:0 5px 0 rgba(0,0,0,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;opacity:.6;transition:opacity .1s,transform .1s;touch-action:none"><svg width="36" height="90" viewBox="0 0 36 90"><path d="M18,4 C4,25 32,45 18,65 C10,76 14,84 18,88" stroke="${st.c}" stroke-width="12" fill="none" stroke-linecap="round"/></svg><b style="font-size:14px">${st.name}</b></button>`).join('')}</div></div>`;
+    const btns = $$('[data-s]', a);
+    const upd = () => { $('#fBraid').innerHTML = braidSVG(round); K.hud('🎀 ' + round + '/' + ROUNDS, '❤️'.repeat(lives) + '🤍'.repeat(3 - lives)); };
+    const light = (i, ms) => {
+      const b = btns[i]; b.style.opacity = '1'; b.style.transform = 'translateY(-6px) scale(1.05)';
+      Snd.tone(strands[i].f, ms / 1000, 'triangle', 0.2);
+      later(() => { b.style.opacity = '.6'; b.style.transform = 'none'; }, ms);
+    };
+    function show() {
+      inp = 0; accept = false; $('#fMsg').textContent = 'Schau genau hin… 👀'; upd();
+      const gap = Math.max(380, 640 - round * 30);
+      seq.forEach((p, k) => later(() => light(p, gap * 0.6), 600 + k * gap));
+      later(() => { accept = true; $('#fMsg').textContent = 'Jetzt du! 👆'; }, 600 + seq.length * gap);
+    }
+    function next() { seq = Array.from({ length: round + 3 }, () => Math.floor(Math.random() * 3)); show(); }
+    function end(win) {
+      accept = false;
+      let extra = '';
+      if (win && !owns('style:zoepfe')) { S.owned.push('style:zoepfe'); S.horse.maneStyle = 'zoepfe'; save(); extra = ' · 🎀 Neue Frisur „Geflochten“ geschenkt!'; }
+      later(() => K.finish('flechten', round, round * 2 + (win ? 4 : 0), (win ? 'Der Zopf ist fertig! 🎀' : `${round} von ${ROUNDS} Flechtschritten geschafft`) + extra), 900);
+    }
+    a.onpointerdown = e => {
+      const b = e.target.closest('[data-s]'); if (!b || !accept || C().paused) return;
+      e.preventDefault();
+      const i = +b.dataset.s; light(i, 220);
+      if (i !== seq[inp]) {
+        accept = false; lives--; Snd.play('hurt'); upd();
+        if (lives <= 0) { $('#fMsg').textContent = 'Oh nein, der Zopf ist aufgegangen! 😮'; end(false); return; }
+        $('#fMsg').textContent = 'Hoppla! Nochmal… 🙈'; later(show, 1100); return;
+      }
+      inp++;
+      if (inp === seq.length) {
+        accept = false; round++; Snd.play('swish'); upd();
+        if (round >= ROUNDS) { $('#fMsg').textContent = 'Wunderschön geflochten! 🎉'; Snd.play('win'); end(true); return; }
+        $('#fMsg').textContent = ['Super!', 'Toll!', 'Weiter so!', 'Perfekt!'][round % 4] + ' 🎀'; Snd.play('coin'); later(next, 900);
+      }
+    };
+    upd(); later(next, 400);
+    return { stop() { timers.forEach(clearTimeout); a.onpointerdown = null; } };
+  }
+
+  Object.assign(Games.HINTS, {
+    misten: 'Zieh die Pferdeäpfel 💩 mit dem Finger in die grüne Schubkarre. Manchmal liegt eine Münze 🪙 im Stroh – die zählt dreifach!',
+    flechten: 'Die Strähnen leuchten nacheinander auf. Tippe sie in derselben Reihenfolge an. Bei jedem Schritt wird der Zopf länger. Schaffst du alle 8?',
+  });
+
+  Object.assign(Games.FNS, { ausritt: Ausritt, dressur: Dressur, fliegen: Fliegen, lasso: Lasso, ring: Ring, wasser: Wasser, misten: Misten, flechten: Flechten });
 })();
 
 </script>

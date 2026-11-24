@@ -1,6 +1,6 @@
 // Offline-Speicher: Das Spiel funktioniert nach dem ersten Öffnen auch ohne Internet.
 // Neue Versionen werden im Hintergrund geladen und beim nächsten Start benutzt.
-const CACHE = 'mein-pferd-1.4.0';
+const CACHE = 'mein-pferd-1.5.0';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
