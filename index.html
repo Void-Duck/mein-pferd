@@ -271,6 +271,29 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
 .gamecard.tired { opacity: .62; }
 .gamecard.tired .play { background: #ADB5BD; box-shadow: 0 3px 0 #868E96; }
 
+/* Querformat-Spiele (Bergfahrt): bei hochkantem Handy um 90° gedreht */
+#game.rot { inset: auto; left: 0; top: 0; width: var(--ah); height: var(--aw); transform-origin: top left; transform: rotate(90deg) translateY(-100%); }
+#game.rot .ghud { padding: 8px 12px 6px calc(var(--sat) + 12px); }
+#game.land .ghud { padding-top: max(8px, var(--sat)); }
+.hcbtn { position: absolute; bottom: 14px; width: 120px; height: 120px; border-radius: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; color: #fff; box-shadow: 0 6px 0 rgba(0,0,0,.25); touch-action: none; z-index: 3; user-select: none; -webkit-user-select: none; }
+.hcbtn .ic { font-size: 40px; line-height: 44px; }
+.hcbtn.on { transform: translateY(4px) scale(.96); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.garage { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px 12px 8px; background: linear-gradient(180deg,#FFF4E6,#FFE3F1); overflow: hidden; }
+.garage .gh { display: flex; align-items: center; gap: 10px; font-weight: 900; }
+.garage .cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 0; }
+.garage .col { display: flex; flex-direction: column; min-height: 0; }
+.garage .col b.t { font-size: 14px; color: var(--ink2); margin: 0 0 4px 2px; }
+.garage .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 6px; min-height: 0; }
+.gcard { background: #fff; border-radius: 16px; padding: 4px 6px; display: flex; align-items: center; gap: 6px; text-align: left; border: 2.5px solid transparent; box-shadow: 0 2px 0 var(--line); min-height: 0; overflow: hidden; }
+.gcard.on { border-color: var(--mint); background: #EBFBEE; }
+.gcard.locked { background: #F1F3F5; }
+.gcard.armed { border-color: var(--pink); }
+.gcard .gi2 { font-size: 30px; flex: none; width: 44px; text-align: center; }
+.gcard .gt2 { min-width: 0; line-height: 1.15; }
+.gcard .gt2 b { font-size: 14px; display: block; }
+.gcard .gt2 small { font-size: 11px; color: var(--ink2); font-weight: 700; display: block; }
+.gcard .gt2 .pr2 { font-size: 12px; font-weight: 900; color: #A0703F; display: flex; align-items: center; gap: 3px; }
+
 </style>
 </head>
 <body>
@@ -376,7 +399,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 // WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
 // Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
@@ -384,6 +407,7 @@ const APP_VERSION = '1.5.0';
 
 // „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
 const CHANGELOG = [
+  { v: '1.6.0', items: ['🚙 Neues großes Spiel: Bergfahrt! Handy quer drehen, Gas geben, Saltos machen', 'Fahrzeugmünzen sammeln: Traktor, Geländewagen und das Einhornmobil 🦄 freischalten', 'Neue Strecken: Wüste, Winterland und der Mond mit wenig Schwerkraft 🌙', 'Neue Preise: Schöne Sachen sind jetzt etwas ganz Besonderes ✨ – Glitzerspray hält 24 Stunden'] },
   { v: '1.5.0', items: ['🎵 Fröhliche Musik – jedes Spiel klingt ein bisschen anders', '🌙 Schlaflied mit leisem Schnarchen, wenn dein Pferd schläft', '🔊 Viele neue Geräusche: Striegeln, Waschen, Fressen, Trinken, Hufgetrappel, Springen', '2 neue Spiele: Stall ausmisten und Mähne flechten', 'Musik und Geräusche lassen sich in ⚙️ getrennt einstellen'] },
   { v: '1.4.0', items: ['Neuer Energie-Balken ⚡ – Minispiele machen müde', 'Ab 20 Uhr schläft dein Pferd im Stall 🌙 – tippe es an, um es zu wecken', 'Nickerchen im Stall: 😴-Knopf', 'Zucker & Leckerli geben Energie (je 5 pro Tag)', '6 neue Minispiele: Dressur-Takt, Ausritt, Fliegen verscheuchen, Lasso, Ringstechen, Wasserlauf'] },
   { v: '1.3.0', items: ['Updates kommen jetzt beim ersten Öffnen an', 'Automatische Sicherungen der letzten 3 Tage (⚙️ Einstellungen)'] },
@@ -423,18 +447,18 @@ const MANE_COLORS = [
   { id: 'braun', name: 'Braun', color: '#5A3418', price: 0 },
   { id: 'blond', name: 'Blond', color: '#F6E3A8', price: 0 },
   { id: 'weiss', name: 'Weiß', color: '#F7F4EE', price: 0 },
-  { id: 'rosa', name: 'Rosa', color: '#FF9CCB', price: 20 },
-  { id: 'lila', name: 'Lila', color: '#B58CFF', price: 20 },
-  { id: 'blau', name: 'Himmelblau', color: '#7CC8FF', price: 20 },
-  { id: 'mint', name: 'Mint', color: '#7FE3C0', price: 20 },
-  { id: 'gold', name: 'Gold', color: '#F5C542', price: 40, shine: true },
-  { id: 'regenbogen', name: 'Regenbogen', color: 'rainbow', price: 60 },
+  { id: 'rosa', name: 'Rosa', color: '#FF9CCB', price: 2000 },
+  { id: 'lila', name: 'Lila', color: '#B58CFF', price: 2000 },
+  { id: 'blau', name: 'Himmelblau', color: '#7CC8FF', price: 2000 },
+  { id: 'mint', name: 'Mint', color: '#7FE3C0', price: 2000 },
+  { id: 'gold', name: 'Gold', color: '#F5C542', price: 4000, shine: true },
+  { id: 'regenbogen', name: 'Regenbogen', color: 'rainbow', price: 6000 },
 ];
 
 const MANE_STYLES = [
   { id: 'offen', name: 'Offen', price: 0 },
-  { id: 'lockig', name: 'Lockig', price: 15 },
-  { id: 'zoepfe', name: 'Geflochten', price: 15 },
+  { id: 'lockig', name: 'Lockig', price: 1500 },
+  { id: 'zoepfe', name: 'Geflochten', price: 1500 },
 ];
 
 const FACE_MARKS = [
@@ -481,66 +505,66 @@ const TOOLS = [
   { id: 'hand', name: 'Streicheln', icon: '✋', price: 0 },
   { id: 'schwamm', name: 'Schwamm', icon: '🧽', price: 0 },
   { id: 'buerste', name: 'Bürste', icon: 'brush', price: 0 },
-  { id: 'shampoo', name: 'Shampoo', icon: '🧴', price: 5, perUse: true },
-  { id: 'glitzer', name: 'Glitzerspray', icon: '✨', price: 12, perUse: true },
+  { id: 'shampoo', name: 'Shampoo', icon: '🧴', price: 250, perUse: true },
+  { id: 'glitzer', name: 'Glitzerspray', icon: '✨', price: 1000, perUse: true, hours: 24 },
 ];
 
 // Bessere Pflege-Werkzeuge (einmal kaufen, dann im Shop unter „Pflege“ auswählen)
 // power = wie viel stärker als das Grundwerkzeug
 const TOOL_UPGRADES = [
   { id: 'schwamm', tool: 'schwamm', name: 'Schwamm', price: 0, power: 1, color: '#FFD84D', desc: 'Der gute alte gelbe Schwamm' },
-  { id: 'schwamm_bluete', tool: 'schwamm', name: 'Blütenschwamm', price: 30, power: 1.7, color: '#FF8CC4', desc: 'Rosa Schaum, putzt viel schneller' },
-  { id: 'schwamm_regenbogen', tool: 'schwamm', name: 'Regenbogen-Schwamm', price: 70, power: 2.6, color: 'rainbow', desc: 'Bunte Blasen, der beste Schwamm' },
+  { id: 'schwamm_bluete', tool: 'schwamm', name: 'Blütenschwamm', price: 3000, power: 1.7, color: '#FF8CC4', desc: 'Rosa Schaum, putzt viel schneller' },
+  { id: 'schwamm_regenbogen', tool: 'schwamm', name: 'Regenbogen-Schwamm', price: 7000, power: 2.6, color: 'rainbow', desc: 'Bunte Blasen, der beste Schwamm' },
   { id: 'buerste', tool: 'buerste', name: 'Bürste', price: 0, power: 1, color: '#B4793F', desc: 'Einfache Holzbürste' },
-  { id: 'buerste_weich', tool: 'buerste', name: 'Weiche Bürste', price: 30, power: 1.7, color: '#4D96FF', desc: 'Ganz weich, macht mehr Spaß' },
-  { id: 'buerste_gold', tool: 'buerste', name: 'Goldbürste', price: 80, power: 2.6, color: '#F5C542', desc: 'Glänzt und funkelt beim Bürsten' },
+  { id: 'buerste_weich', tool: 'buerste', name: 'Weiche Bürste', price: 3000, power: 1.7, color: '#4D96FF', desc: 'Ganz weich, macht mehr Spaß' },
+  { id: 'buerste_gold', tool: 'buerste', name: 'Goldbürste', price: 8000, power: 2.6, color: '#F5C542', desc: 'Glänzt und funkelt beim Bürsten' },
   { id: 'hand', tool: 'hand', name: 'Hand', price: 0, power: 1, color: '#FFD3B0', desc: 'Einfach streicheln' },
-  { id: 'hand_handschuh', tool: 'hand', name: 'Kuschelhandschuh', price: 35, power: 1.8, color: '#B58CFF', desc: 'Flauschig: mehr Spaß beim Streicheln' },
-  { id: 'hand_massage', tool: 'hand', name: 'Massagehandschuh', price: 60, power: 2.5, color: '#3CCB9A', desc: 'Mit Noppen: dein Pferd liebt es!' },
+  { id: 'hand_handschuh', tool: 'hand', name: 'Kuschelhandschuh', price: 3500, power: 1.8, color: '#B58CFF', desc: 'Flauschig: mehr Spaß beim Streicheln' },
+  { id: 'hand_massage', tool: 'hand', name: 'Massagehandschuh', price: 6000, power: 2.5, color: '#3CCB9A', desc: 'Mit Noppen: dein Pferd liebt es!' },
 ];
 
 // Zubehör: slot = wo es sitzt, nur eins pro Slot
 const ITEMS = [
   { id: 'halfter_rot', slot: 'halfter', name: 'Halfter Rot', color: '#D93A3A', price: 0 },
-  { id: 'halfter_blau', slot: 'halfter', name: 'Halfter Blau', color: '#2F7FE0', price: 10 },
-  { id: 'halfter_rosa', slot: 'halfter', name: 'Halfter Rosa', color: '#FF7DB8', price: 10 },
-  { id: 'halfter_lila', slot: 'halfter', name: 'Halfter Lila', color: '#8C5BE8', price: 10 },
-  { id: 'halfter_gruen', slot: 'halfter', name: 'Halfter Grün', color: '#2DB36A', price: 10 },
-  { id: 'halfter_gold', slot: 'halfter', name: 'Halfter Gold', color: '#E8B923', price: 30 },
-  { id: 'schab_blau', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Blau', color: '#2F6FD0', trim: '#FFFFFF', price: 20 },
-  { id: 'schab_rosa', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Rosa', color: '#FF8CC4', trim: '#FFFFFF', price: 20 },
-  { id: 'schab_gruen', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Grün', color: '#28A866', trim: '#FFE27A', price: 20 },
-  { id: 'schab_sterne', slot: 'ruecken', kind: 'schabracke', name: 'Sternen-Schabracke', color: '#22306E', trim: '#F5C542', stars: true, price: 40 },
-  { id: 'decke_rot', slot: 'ruecken', kind: 'decke', name: 'Decke Rot kariert', color: '#C8302F', trim: '#2B2B2B', check: true, price: 35 },
-  { id: 'decke_lila', slot: 'ruecken', kind: 'decke', name: 'Decke Lila', color: '#7E57C2', trim: '#FFD54F', price: 35 },
-  { id: 'schleife_rot', slot: 'maehne', name: 'Schleife Rot', color: '#E53935', price: 10 },
-  { id: 'schleife_rosa', slot: 'maehne', name: 'Schleife Rosa', color: '#FF6FAE', price: 10 },
-  { id: 'schleife_blau', slot: 'maehne', name: 'Schleife Blau', color: '#3D8BFF', price: 10 },
-  { id: 'kranz', slot: 'kopf', name: 'Blumenkranz', price: 30 },
-  { id: 'muetze', slot: 'kopf', name: 'Bommelmütze', color: '#E5484D', price: 25 },
-  { id: 'krone', slot: 'kopf', name: 'Krone', price: 60 },
-  { id: 'horn', slot: 'kopf', name: 'Einhorn-Horn', price: 80 },
-  { id: 'schab_herz', slot: 'ruecken', kind: 'schabracke', name: 'Herzchen-Schabracke', color: '#FF5C8A', trim: '#FFFFFF', hearts: true, price: 30 },
-  { id: 'decke_regenbogen', slot: 'ruecken', kind: 'decke', name: 'Regenbogen-Decke', color: '#FFFFFF', trim: '#FFFFFF', rainbow: true, price: 55 },
-  { id: 'partyhut', slot: 'kopf', name: 'Partyhut', color: '#8C5BE8', price: 20 },
-  { id: 'cowboyhut', slot: 'kopf', name: 'Cowboyhut', color: '#9A6233', price: 40 },
-  { id: 'zylinder', slot: 'kopf', name: 'Zylinder', color: '#1F1B24', price: 45 },
-  { id: 'band_rot', slot: 'beine', name: 'Bandagen Rot', color: '#E5484D', price: 15 },
-  { id: 'band_blau', slot: 'beine', name: 'Bandagen Blau', color: '#3D8BFF', price: 15 },
-  { id: 'band_rosa', slot: 'beine', name: 'Bandagen Rosa', color: '#FF8CC4', price: 15 },
-  { id: 'band_lila', slot: 'beine', name: 'Bandagen Lila', color: '#9B6BFF', price: 15 },
-  { id: 'band_glitzer', slot: 'beine', name: 'Glitzer-Bandagen', color: '#F5C542', glitter: true, price: 35 },
-  { id: 'brille_sonne', slot: 'gesicht', name: 'Sonnenbrille', color: '#1F1B24', price: 30 },
-  { id: 'brille_herz', slot: 'gesicht', name: 'Herzbrille', color: '#FF4F7B', heart: true, price: 35 },
-  { id: 'brille_stern', slot: 'gesicht', name: 'Sternbrille', color: '#F5C542', star: true, price: 35 },
-  { id: 'kette_blumen', slot: 'hals', name: 'Blumenkette', price: 25 },
-  { id: 'halsband_glocke', slot: 'hals', name: 'Glöckchen-Halsband', color: '#E5484D', price: 20 },
-  { id: 'kette_perlen', slot: 'hals', name: 'Perlenkette', color: '#FFF6F0', price: 40 },
-  { id: 'schweif_rot', slot: 'schweif', name: 'Schweifschleife Rot', color: '#E53935', price: 10 },
-  { id: 'schweif_rosa', slot: 'schweif', name: 'Schweifschleife Rosa', color: '#FF6FAE', price: 10 },
-  { id: 'schweif_blau', slot: 'schweif', name: 'Schweifschleife Blau', color: '#3D8BFF', price: 10 },
-  { id: 'aura_glitzer', slot: 'aura', name: 'Glitzer-Aura', price: 50 },
-  { id: 'aura_herzen', slot: 'aura', name: 'Herzchen-Aura', price: 50 },
+  { id: 'halfter_blau', slot: 'halfter', name: 'Halfter Blau', color: '#2F7FE0', price: 1000 },
+  { id: 'halfter_rosa', slot: 'halfter', name: 'Halfter Rosa', color: '#FF7DB8', price: 1000 },
+  { id: 'halfter_lila', slot: 'halfter', name: 'Halfter Lila', color: '#8C5BE8', price: 1000 },
+  { id: 'halfter_gruen', slot: 'halfter', name: 'Halfter Grün', color: '#2DB36A', price: 1000 },
+  { id: 'halfter_gold', slot: 'halfter', name: 'Halfter Gold', color: '#E8B923', price: 3000 },
+  { id: 'schab_blau', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Blau', color: '#2F6FD0', trim: '#FFFFFF', price: 2000 },
+  { id: 'schab_rosa', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Rosa', color: '#FF8CC4', trim: '#FFFFFF', price: 2000 },
+  { id: 'schab_gruen', slot: 'ruecken', kind: 'schabracke', name: 'Schabracke Grün', color: '#28A866', trim: '#FFE27A', price: 2000 },
+  { id: 'schab_sterne', slot: 'ruecken', kind: 'schabracke', name: 'Sternen-Schabracke', color: '#22306E', trim: '#F5C542', stars: true, price: 4000 },
+  { id: 'decke_rot', slot: 'ruecken', kind: 'decke', name: 'Decke Rot kariert', color: '#C8302F', trim: '#2B2B2B', check: true, price: 3500 },
+  { id: 'decke_lila', slot: 'ruecken', kind: 'decke', name: 'Decke Lila', color: '#7E57C2', trim: '#FFD54F', price: 3500 },
+  { id: 'schleife_rot', slot: 'maehne', name: 'Schleife Rot', color: '#E53935', price: 1000 },
+  { id: 'schleife_rosa', slot: 'maehne', name: 'Schleife Rosa', color: '#FF6FAE', price: 1000 },
+  { id: 'schleife_blau', slot: 'maehne', name: 'Schleife Blau', color: '#3D8BFF', price: 1000 },
+  { id: 'kranz', slot: 'kopf', name: 'Blumenkranz', price: 3000 },
+  { id: 'muetze', slot: 'kopf', name: 'Bommelmütze', color: '#E5484D', price: 2500 },
+  { id: 'krone', slot: 'kopf', name: 'Krone', price: 6000 },
+  { id: 'horn', slot: 'kopf', name: 'Einhorn-Horn', price: 8000 },
+  { id: 'schab_herz', slot: 'ruecken', kind: 'schabracke', name: 'Herzchen-Schabracke', color: '#FF5C8A', trim: '#FFFFFF', hearts: true, price: 3000 },
+  { id: 'decke_regenbogen', slot: 'ruecken', kind: 'decke', name: 'Regenbogen-Decke', color: '#FFFFFF', trim: '#FFFFFF', rainbow: true, price: 5500 },
+  { id: 'partyhut', slot: 'kopf', name: 'Partyhut', color: '#8C5BE8', price: 2000 },
+  { id: 'cowboyhut', slot: 'kopf', name: 'Cowboyhut', color: '#9A6233', price: 4000 },
+  { id: 'zylinder', slot: 'kopf', name: 'Zylinder', color: '#1F1B24', price: 4500 },
+  { id: 'band_rot', slot: 'beine', name: 'Bandagen Rot', color: '#E5484D', price: 1500 },
+  { id: 'band_blau', slot: 'beine', name: 'Bandagen Blau', color: '#3D8BFF', price: 1500 },
+  { id: 'band_rosa', slot: 'beine', name: 'Bandagen Rosa', color: '#FF8CC4', price: 1500 },
+  { id: 'band_lila', slot: 'beine', name: 'Bandagen Lila', color: '#9B6BFF', price: 1500 },
+  { id: 'band_glitzer', slot: 'beine', name: 'Glitzer-Bandagen', color: '#F5C542', glitter: true, price: 3500 },
+  { id: 'brille_sonne', slot: 'gesicht', name: 'Sonnenbrille', color: '#1F1B24', price: 3000 },
+  { id: 'brille_herz', slot: 'gesicht', name: 'Herzbrille', color: '#FF4F7B', heart: true, price: 3500 },
+  { id: 'brille_stern', slot: 'gesicht', name: 'Sternbrille', color: '#F5C542', star: true, price: 3500 },
+  { id: 'kette_blumen', slot: 'hals', name: 'Blumenkette', price: 2500 },
+  { id: 'halsband_glocke', slot: 'hals', name: 'Glöckchen-Halsband', color: '#E5484D', price: 2000 },
+  { id: 'kette_perlen', slot: 'hals', name: 'Perlenkette', color: '#FFF6F0', price: 4000 },
+  { id: 'schweif_rot', slot: 'schweif', name: 'Schweifschleife Rot', color: '#E53935', price: 1000 },
+  { id: 'schweif_rosa', slot: 'schweif', name: 'Schweifschleife Rosa', color: '#FF6FAE', price: 1000 },
+  { id: 'schweif_blau', slot: 'schweif', name: 'Schweifschleife Blau', color: '#3D8BFF', price: 1000 },
+  { id: 'aura_glitzer', slot: 'aura', name: 'Glitzer-Aura', price: 5000 },
+  { id: 'aura_herzen', slot: 'aura', name: 'Herzchen-Aura', price: 5000 },
 ];
 
 const SLOTS = [
@@ -558,24 +582,25 @@ const SLOTS = [
 const SCENES = [
   { id: 'weide', name: 'Weide', price: 0 },
   { id: 'stall', name: 'Stall', price: 0, indoor: true },
-  { id: 'wald', name: 'Wald', price: 30 },
-  { id: 'strand', name: 'Strand', price: 40 },
-  { id: 'winter', name: 'Winterland', price: 50 },
-  { id: 'nacht', name: 'Sternennacht', price: 60, alwaysNight: true },
-  { id: 'bauernhof', name: 'Bauernhof', price: 30 },
-  { id: 'herbst', name: 'Herbstwald', price: 35 },
-  { id: 'reithalle', name: 'Reithalle', price: 40, indoor: true },
-  { id: 'berge', name: 'Alm', price: 45 },
-  { id: 'see', name: 'Bergsee', price: 45 },
-  { id: 'lavendel', name: 'Lavendelfeld', price: 50 },
-  { id: 'kirsch', name: 'Kirschblütengarten', price: 60 },
-  { id: 'oase', name: 'Wüsten-Oase', price: 70 },
-  { id: 'schloss', name: 'Märchenschloss', price: 80 },
-  { id: 'regenbogen', name: 'Regenbogenland', price: 100 },
-  { id: 'mond', name: 'Auf dem Mond', price: 120, alwaysNight: true },
+  { id: 'wald', name: 'Wald', price: 3000 },
+  { id: 'strand', name: 'Strand', price: 4000 },
+  { id: 'winter', name: 'Winterland', price: 5000 },
+  { id: 'nacht', name: 'Sternennacht', price: 6000, alwaysNight: true },
+  { id: 'bauernhof', name: 'Bauernhof', price: 3000 },
+  { id: 'herbst', name: 'Herbstwald', price: 3500 },
+  { id: 'reithalle', name: 'Reithalle', price: 4000, indoor: true },
+  { id: 'berge', name: 'Alm', price: 4500 },
+  { id: 'see', name: 'Bergsee', price: 4500 },
+  { id: 'lavendel', name: 'Lavendelfeld', price: 5000 },
+  { id: 'kirsch', name: 'Kirschblütengarten', price: 6000 },
+  { id: 'oase', name: 'Wüsten-Oase', price: 7000 },
+  { id: 'schloss', name: 'Märchenschloss', price: 8000 },
+  { id: 'regenbogen', name: 'Regenbogenland', price: 10000 },
+  { id: 'mond', name: 'Auf dem Mond', price: 6000, alwaysNight: true },
 ];
 
 const GAMES = [
+  { id: 'hill', energy: 25, name: 'Bergfahrt', icon: '🚙', desc: 'Fahr über Berg und Tal! Saltos und Flüge bringen Fahrzeugmünzen für neue Autos und Strecken.', color: '#FF922B' },
   { id: 'springen', energy: 25, name: 'Springreiten', icon: '🏇', desc: 'Tippe zum Springen über die Hindernisse.', color: '#4FB0FF' },
   { id: 'aepfel', energy: 15, name: 'Äpfel fangen', icon: '🍎', desc: 'Fange Äpfel, weiche Bienen und Steinen aus.', color: '#FF6B6B' },
   { id: 'memory', energy: 3, name: 'Hufeisen-Memory', icon: '🃏', desc: 'Finde alle Paare mit möglichst wenigen Zügen.', color: '#B07CFF' },
@@ -598,6 +623,7 @@ const GAMES = [
 const DECAY = { hunger: 2.5, fun: 3, clean: 2 };
 const FLOOR = 8;
 const DAILY_BONUS = 15;
+const RESTYLE_PRICE = 10000;          // Aussehen ändern (Rasse, Fell, Abzeichen …); das erste Erstellen ist gratis
 
 // Energie & Schlaf
 const SLEEP_FROM = 20, SLEEP_TO = 7;   // feste Schlafenszeit 20:00–7:00 Uhr
@@ -1558,7 +1584,7 @@ const Music = (() => {
     western: { bpm: 118, steps: 16, mel: WEST, ch: WEST_CH, tr: 0, lead: 'twang', drums: 'western', bass: 'western' },
     lullaby: { bpm: 60, steps: 16, mel: LULL, ch: LULL_CH, tr: 0, lead: 'box', drums: 'none', bass: 'pad', snore: true },
   };
-  const GAME_SONG = { springen: 'gallop', rennen: 'gallop', ausritt: 'gallop', ring: 'gallop', aepfel: 'bouncy', karotten: 'bouncy', fliegen: 'bouncy', misten: 'bouncy', dressur: 'waltz', lasso: 'western', werfen: 'western', memory: 'calm', quiz: 'calm', wasser: 'calm', flechten: 'calm', simon: null };
+  const GAME_SONG = { hill: 'gallop', springen: 'gallop', rennen: 'gallop', ausritt: 'gallop', ring: 'gallop', aepfel: 'bouncy', karotten: 'bouncy', fliegen: 'bouncy', misten: 'bouncy', dressur: 'waltz', lasso: 'western', werfen: 'western', memory: 'calm', quiz: 'calm', wasser: 'calm', flechten: 'calm', simon: null };
 
   let cur = null, bus = null, step = 0, nextT = 0, timer = 0, want = 'main';
   const ctx = () => Snd.ctx;
@@ -1897,6 +1923,7 @@ function moodOf() {
   return 'ok';
 }
 const owns = id => S.owned.includes(id);
+const fmt = n => Math.round(n).toLocaleString('de-DE');
 
 // ---------- Automatische Sicherungen (eine pro Tag, die letzten 3) ----------
 const BKEY = KEY + '.sicherungen';
@@ -2012,7 +2039,7 @@ function addCoins(n, fromX, fromY) {
 function spend(n) {
   if (S.coins < n) {
     Snd.play('nope');
-    toast(`Dir fehlen ${n - S.coins} 🪙 – spiel ein Minispiel! 🎮`);
+    toast(`Dir fehlen ${fmt(n - S.coins)} 🪙 – spiel ein Minispiel! 🎮`);
     return false;
   }
   S.coins -= n; save(); renderTop();
@@ -2122,7 +2149,7 @@ function renderScene() {
 function renderTop() {
   const B = byId(BREEDS, S.horse ? S.horse.breed : 'pony');
   $('#hname').innerHTML = S.horse ? `${esc(S.horse.name)}<small>${B.name}</small>` : '';
-  $('#coinVal').textContent = S.coins;
+  $('#coinVal').textContent = fmt(S.coins);
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function barColor(v) { return v < 25 ? '#FF5A6E' : v < 50 ? '#FFB03B' : v < 75 ? '#9ED84C' : '#3CCB7A'; }
@@ -2229,7 +2256,7 @@ function renderTools() {
   $('#tools').innerHTML = TOOLS.map(t => {
     const up = t.perUse ? null : toolSel(t.id);
     const name = up && up.price ? up.name.replace('Regenbogen-', 'Regenb.-').replace('handschuh', 'handsch.') : t.name;
-    return `<button class="tool ${t.id === tool ? 'on' : ''}" data-tool="${t.id}"><span class="ic">${up ? toolIcon(up) : t.icon}</span>${name}${t.perUse ? `<span class="price">${t.price} 🪙</span>` : ''}</button>`;
+    return `<button class="tool ${t.id === tool ? 'on' : ''}" data-tool="${t.id}"><span class="ic">${up ? toolIcon(up) : t.icon}</span>${name}${t.perUse ? `<span class="price">${fmt(t.price)} 🪙</span>` : ''}</button>`;
   }).join('');
 }
 function brushIcon() {
@@ -2260,7 +2287,7 @@ function useTool(id, btn) {
     setTimeout(() => { change({ clean: 45, fun: 5 }); say('Huiii, das kitzelt! 🫧'); }, 700);
   } else if (id === 'glitzer') {
     if (!spend(t.price)) return;
-    S.sparkleUntil = Date.now() + 120000; save();
+    S.sparkleUntil = Date.now() + (t.hours || 24) * 3600000; save();
     Snd.play('sparkle');
     const box = $('#centerBox').getBoundingClientRect();
     for (let i = 0; i < 16; i++) setTimeout(() => fx('spark', box.left + box.width * (0.1 + Math.random() * 0.8), box.top + box.height * (0.2 + Math.random() * 0.6), '✦', { '--dx': (Math.random() * 60 - 30) + 'px', '--dy': (-20 - Math.random() * 40) + 'px' }), i * 50);
@@ -2341,7 +2368,7 @@ function renderFood() {
   sweetsReset();
   $('#foodGrid').innerHTML = FOODS.map(f => {
     const left = f.sweet ? SWEETS_PER_DAY - (S.sweets[f.id] || 0) : null;
-    return `<button class="food ${f.price > S.coins || left === 0 ? 'poor' : ''}" data-food="${f.id}"><div class="fi">${f.icon}</div><div class="fn">${f.name}</div><div class="fs">🍎+${f.hunger}${f.fun ? ' 😄+' + f.fun : ''}${f.energy ? ' ⚡+' + f.energy : ''}</div>${f.sweet ? `<div class="fs">noch ${left}× heute</div>` : ''}<div class="fp ${f.price ? '' : 'free'}">${f.price ? f.price + ' 🪙' : 'Gratis'}</div></button>`;
+    return `<button class="food ${f.price > S.coins || left === 0 ? 'poor' : ''}" data-food="${f.id}"><div class="fi">${f.icon}</div><div class="fn">${f.name}</div><div class="fs">🍎+${f.hunger}${f.fun ? ' 😄+' + f.fun : ''}${f.energy ? ' ⚡+' + f.energy : ''}</div>${f.sweet ? `<div class="fs">noch ${left}× heute</div>` : ''}<div class="fp ${f.price ? '' : 'free'}">${f.price ? fmt(f.price) + ' 🪙' : 'Gratis'}</div></button>`;
   }).join('');
 }
 function foodSound(id) {
@@ -2449,7 +2476,7 @@ function renderShop() {
       h += `<div class="sectionlbl">${sl.name}</div><div class="itemgrid">`;
       ITEMS.filter(i => i.slot === sl.id).forEach(it => {
         const own = it.price === 0 || owns(it.id), on = eq[sl.id] === it.id;
-        h += `<button class="item ${on ? 'on' : ''}" data-item="${it.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${itemPreview(it)}</div><div class="nm">${it.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Angelegt' : own ? 'Anlegen' : it.price + ' 🪙'}</div></button>`;
+        h += `<button class="item ${on ? 'on' : ''}" data-item="${it.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${itemPreview(it)}</div><div class="nm">${it.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Angelegt' : own ? 'Anlegen' : fmt(it.price) + ' 🪙'}</div></button>`;
       });
       h += `</div>`;
     });
@@ -2458,14 +2485,14 @@ function renderShop() {
     MANE_COLORS.forEach(m => {
       const own = m.price === 0 || owns('mane:' + m.id), on = (S.horse.mane || 'natur') === m.id;
       const col = m.color === 'rainbow' ? `conic-gradient(${RAINBOW.join(',')},${RAINBOW[0]})` : (m.color || byId(COATS, S.horse.coat).mane);
-      h += `<button class="item ${on ? 'on' : ''}" data-mane="${m.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv"><div class="swatch" style="background:${col}"></div></div><div class="nm">${m.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Aktiv' : own ? 'Wählen' : m.price + ' 🪙'}</div></button>`;
+      h += `<button class="item ${on ? 'on' : ''}" data-mane="${m.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv"><div class="swatch" style="background:${col}"></div></div><div class="nm">${m.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Aktiv' : own ? 'Wählen' : fmt(m.price) + ' 🪙'}</div></button>`;
     });
     h += `</div><div class="sectionlbl">Frisur</div><div class="itemgrid">`;
     MANE_STYLES.forEach(m => {
       const own = m.price === 0 || owns('style:' + m.id), on = (S.horse.maneStyle || 'offen') === m.id;
       const prev = horseSVG(Object.assign({}, S.horse, { maneStyle: m.id, equip: {} }), { anim: false });
       const g = horseSVG.geo, x = 170 + (g.hx - g.R * 2.6 - 170) * g.scale, y = 285 + (g.hy - g.R * 1.4 - 285) * g.scale;
-      h += `<button class="item ${on ? 'on' : ''}" data-style="${m.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${prev.replace('viewBox="0 -60 340 360"', `viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${(g.R * 4.2 * g.scale).toFixed(1)} ${(g.R * 4.2 * g.scale).toFixed(1)}"`)}</div><div class="nm">${m.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Aktiv' : own ? 'Wählen' : m.price + ' 🪙'}</div></button>`;
+      h += `<button class="item ${on ? 'on' : ''}" data-style="${m.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${prev.replace('viewBox="0 -60 340 360"', `viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${(g.R * 4.2 * g.scale).toFixed(1)} ${(g.R * 4.2 * g.scale).toFixed(1)}"`)}</div><div class="nm">${m.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Aktiv' : own ? 'Wählen' : fmt(m.price) + ' 🪙'}</div></button>`;
     });
     h += `</div>`;
   } else if (shopTab === 'pflege') {
@@ -2473,7 +2500,7 @@ function renderShop() {
       h += `<div class="sectionlbl">${lbl}</div><div class="itemgrid">`;
       TOOL_UPGRADES.filter(u => u.tool === t).forEach(u => {
         const own = u.price === 0 || owns(u.id), on = toolSel(t).id === u.id;
-        h += `<button class="item ${on ? 'on' : ''}" data-up="${u.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${toolIcon(u, 48)}</div><div class="nm">${u.name}</div><div class="gd" style="font-size:10.5px;color:var(--ink2);font-weight:600;line-height:1.2">${u.desc}${u.power > 1 ? ` · ×${u.power}` : ''}</div><div class="pr ${own ? 'own' : ''}">${on ? 'In Benutzung' : own ? 'Benutzen' : u.price + ' 🪙'}</div></button>`;
+        h += `<button class="item ${on ? 'on' : ''}" data-up="${u.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv">${toolIcon(u, 48)}</div><div class="nm">${u.name}</div><div class="gd" style="font-size:10.5px;color:var(--ink2);font-weight:600;line-height:1.2">${u.desc}${u.power > 1 ? ` · ×${u.power}` : ''}</div><div class="pr ${own ? 'own' : ''}">${on ? 'In Benutzung' : own ? 'Benutzen' : fmt(u.price) + ' 🪙'}</div></button>`;
       });
       h += `</div>`;
     });
@@ -2481,19 +2508,19 @@ function renderShop() {
     h += `<div class="itemgrid">`;
     SCENES.forEach(sc => {
       const own = sc.price === 0 || owns('scene:' + sc.id), on = S.scene === sc.id;
-      h += `<button class="item ${on ? 'on' : ''}" data-scene="${sc.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv" style="height:70px">${sceneSVG(sc.id).replace('xMidYMax slice', 'xMidYMid slice').replace('viewBox="0 0 400 600"', 'viewBox="0 150 400 400"')}</div><div class="nm">${sc.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Hier bist du' : own ? 'Hingehen' : sc.price + ' 🪙'}</div></button>`;
+      h += `<button class="item ${on ? 'on' : ''}" data-scene="${sc.id}">${on ? '<span class="check">✅</span>' : ''}<div class="pv" style="height:70px">${sceneSVG(sc.id).replace('xMidYMax slice', 'xMidYMid slice').replace('viewBox="0 0 400 600"', 'viewBox="0 150 400 400"')}</div><div class="nm">${sc.name}</div><div class="pr ${own ? 'own' : ''}">${on ? 'Hier bist du' : own ? 'Hingehen' : fmt(sc.price) + ' 🪙'}</div></button>`;
     });
     h += `</div>`;
   } else if (shopTab === 'aussehen') {
     const B = byId(BREEDS, S.horse.breed), C = byId(COATS, S.horse.coat);
-    h += `<div class="gamecard" style="display:block"><b>${esc(S.horse.name)}</b><div class="gd">${B.name} · ${C.name}</div><div class="gd" style="margin-top:6px">Rasse, Fellfarbe, Augen und Abzeichen kannst du jederzeit kostenlos ändern.</div></div>`;
-    h += `<button class="btn pri" id="editHorse" style="width:100%;margin-top:4px">✏️ Aussehen ändern</button>`;
+    h += `<div class="gamecard" style="display:block"><b>${esc(S.horse.name)}</b><div class="gd">${B.name} · ${C.name}</div><div class="gd" style="margin-top:6px">Rasse, Fellfarbe, Augen und Abzeichen ändern kostet <b>${fmt(RESTYLE_PRICE)} 🪙</b>. Bezahlt wird erst beim Speichern – nur wenn du wirklich etwas änderst.</div></div>`;
+    h += `<button class="btn pri" id="editHorse" style="width:100%;margin-top:4px">✏️ Aussehen ändern · ${fmt(RESTYLE_PRICE)} 🪙</button>`;
   }
   $('#shopBody').innerHTML = h;
 }
 async function buy(name, price) {
   if (S.coins < price) { spend(price); return false; }
-  const ok = await modal(`<div class="emoji">🛍️</div><h2>${esc(name)}</h2><p>Für <b>${price} 🪙</b> kaufen?</p><p style="font-size:13px">Du hast ${S.coins} 🪙</p>`, [{ label: 'Nein' }, { label: 'Kaufen', pri: true, value: true }]);
+  const ok = await modal(`<div class="emoji">🛍️</div><h2>${esc(name)}</h2><p>Für <b>${fmt(price)} 🪙</b> kaufen?</p><p style="font-size:13px">Du hast ${fmt(S.coins)} 🪙</p>`, [{ label: 'Nein' }, { label: 'Kaufen', pri: true, value: true }]);
   if (!ok) return false;
   if (!spend(price)) return false;
   Snd.play('coin');
@@ -2502,7 +2529,7 @@ async function buy(name, price) {
 async function shopClick(e) {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.id === 'editHorse') { closeShop(); openCreator(true); return; }
+  if (b.id === 'editHorse') { if (S.coins < RESTYLE_PRICE) { spend(RESTYLE_PRICE); return; } closeShop(); openCreator(true); return; }
   const eq = S.horse.equip = S.horse.equip || {};
   if (b.dataset.item) {
     const it = ITEMS.find(i => i.id === b.dataset.item);
@@ -2569,11 +2596,11 @@ function renderCreator() {
     h += `<div class="sectionlbl">Mähnenfarbe</div><div class="chips">` + MANE_COLORS.map(m => {
       const own = m.price === 0 || owns('mane:' + m.id);
       const col = m.color === 'rainbow' ? `conic-gradient(${RAINBOW.join(',')})` : (m.color || byId(COATS, d.coat).mane);
-      return `<button class="chip ${d.mane === m.id ? 'on' : ''}" data-mane="${m.id}" ${own ? '' : 'data-locked="1"'}><span class="dot" style="background:${col}"></span>${m.name}${own ? '' : ` <span class="lock">🔒${m.price}</span>`}</button>`;
+      return `<button class="chip ${d.mane === m.id ? 'on' : ''}" data-mane="${m.id}" ${own ? '' : 'data-locked="1"'}><span class="dot" style="background:${col}"></span>${m.name}${own ? '' : ` <span class="lock">🔒${fmt(m.price)}</span>`}</button>`;
     }).join('') + `</div>`;
     h += `<div class="sectionlbl">Frisur</div><div class="chips">` + MANE_STYLES.map(m => {
       const own = m.price === 0 || owns('style:' + m.id);
-      return `<button class="chip ${d.maneStyle === m.id ? 'on' : ''}" data-style="${m.id}" ${own ? '' : 'data-locked="1"'}>${m.name}${own ? '' : ` <span class="lock">🔒${m.price}</span>`}</button>`;
+      return `<button class="chip ${d.maneStyle === m.id ? 'on' : ''}" data-style="${m.id}" ${own ? '' : 'data-locked="1"'}>${m.name}${own ? '' : ` <span class="lock">🔒${fmt(m.price)}</span>`}</button>`;
     }).join('') + `</div>`;
     h += `<div class="sectionlbl">Augenfarbe</div><div class="chips">` + EYE_COLORS.map(m => `<button class="chip ${d.eye === m.id ? 'on' : ''}" data-eye="${m.id}"><span class="dot" style="background:${m.color}"></span>${m.name}</button>`).join('') + `</div></div>`;
   } else if (st === 'abzeichen') {
@@ -2588,7 +2615,7 @@ function renderCreator() {
   $('#cContent').innerHTML = h;
   $('#cBack').textContent = C_step === 0 ? (C_edit ? 'Abbrechen' : '‹') : '‹ Zurück';
   $('#cBack').style.visibility = C_step === 0 && !C_edit ? 'hidden' : 'visible';
-  $('#cNext').textContent = C_step === C_STEPS.length - 1 ? (C_edit ? 'Speichern ✓' : 'Los geht\'s! 🐴') : 'Weiter ›';
+  $('#cNext').textContent = C_step === C_STEPS.length - 1 ? (C_edit ? `Speichern · ${fmt(RESTYLE_PRICE)} 🪙` : 'Los geht\'s! 🐴') : 'Weiter ›';
   updateCreatorNext();
   // Vorschau
   const sv = Object.assign({}, S.horse || {}, { equip: {} });
@@ -2637,6 +2664,10 @@ function creatorNav(dir) {
     C_draft.name = C_draft.name.trim().slice(0, 16);
     if (!C_draft.name) return;
     const first = !S.horse;
+    if (C_edit) {
+      const changed = ['breed', 'coat', 'face', 'legs', 'eye'].some(k => (C_draft[k] || '') !== (S.horse[k] || ''));
+      if (changed && !spend(RESTYLE_PRICE)) return;
+    }
     S.horse = C_draft;
     if (first) { S.stats = { hunger: 80, fun: 80, clean: 85, energy: 100 }; S.last = Date.now(); }
     saveNow();
@@ -2990,16 +3021,40 @@ const Games = (() => {
     closeShop();
     Music.forGame(id);
     $('#game').classList.remove('hidden');
+    $('#game').classList.toggle('land', !!LANDSCAPE[id]);
+    fitLandscape();
     $('#gTitle').textContent = g.icon + ' ' + g.name;
     area().innerHTML = '';
     area().style.background = '';
     hud('', '');
     startScreen(g);
   }
-  const FNS = {};   // weitere Spiele melden sich hier an (games2.js)
+  const FNS = {};   // weitere Spiele melden sich hier an (games2.js, games3.js)
   const HINTS = {};
+  const CUSTOM = {};    // eigener Startbildschirm (z. B. Garage)
+  const LANDSCAPE = {}; // Spiele im Querformat
+  // Querformat: Ist das Handy hochkant, wird das Spiel um 90° gedreht gezeichnet → Handy einfach drehen
+  function fitLandscape() {
+    const gm = $('#game'), app = $('#app').getBoundingClientRect();
+    const rot = gm.classList.contains('land') && app.height > app.width;
+    gm.classList.toggle('rot', rot);
+    gm.style.setProperty('--aw', app.width + 'px'); gm.style.setProperty('--ah', app.height + 'px');
+  }
+  window.addEventListener('resize', () => { if (!$('#game').classList.contains('hidden')) fitLandscape(); });
+  function launch(g, arg) {
+    if (S.stats.energy < g.energy) return false;
+    // Energie abziehen, Pferd ist jetzt wach
+    if (isAsleep()) { if (isBedtime()) S.awakeUntil = Date.now() + REST_AFTER_WAKE; else { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } } }
+    S.stats.energy = Math.max(0, S.stats.energy - g.energy); touchAwake(); save();
+    area().innerHTML = '';
+    const games = Object.assign({ springen: Jump, aepfel: Catch, memory: Memory, karotten: Whack, rennen: Race, werfen: Throw, simon: Simon, quiz: Quiz }, FNS);
+    cur = games[g.id](arg);
+    cur.id = g.id; cur.running = true;
+    return true;
+  }
   function startScreen(g) {
     const a = area();
+    if (CUSTOM[g.id]) { CUSTOM[g.id](a, g, { launch: arg => launch(g, arg), close: () => close(true) }); return; }
     let extra = '';
     const tired = S.stats.energy < g.energy;
     const eLine = `<p style="font-size:14px;color:${tired ? '#E8590C' : '#2B8A3E'}">⚡ Braucht ${g.energy} Energie · dein Pferd hat ${Math.floor(S.stats.energy)}</p>`;
@@ -3012,14 +3067,7 @@ const Games = (() => {
       const b = e.target.closest('button'); if (!b) return;
       Snd.play('click');
       if (b.dataset.tired) { close(true); return; }
-      if (S.stats.energy < g.energy) return;
-      // Energie abziehen, Pferd ist jetzt wach
-      if (isAsleep()) { if (isBedtime()) S.awakeUntil = Date.now() + REST_AFTER_WAKE; else { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } } }
-      S.stats.energy = Math.max(0, S.stats.energy - g.energy); touchAwake(); save();
-      a.innerHTML = '';
-      const games = Object.assign({ springen: Jump, aepfel: Catch, memory: Memory, karotten: Whack, rennen: Race, werfen: Throw, simon: Simon, quiz: Quiz }, FNS);
-      cur = games[g.id](b.dataset.diff ? +b.dataset.diff : 0);
-      cur.id = g.id; cur.running = true;
+      launch(g, b.dataset.diff ? +b.dataset.diff : 0);
     };
   }
   function finish(id, score, coins, text) {
@@ -3054,6 +3102,7 @@ const Games = (() => {
     cur = null;
     area().innerHTML = '';
     $('#game').classList.add('hidden');
+    $('#game').classList.remove('land', 'rot');
     renderGames(); renderBars(); refreshHorses(); renderFood();
     musicAuto();
     if (!silent) Snd.play('click');
@@ -3586,7 +3635,7 @@ const Games = (() => {
 
   // Werkzeugkasten für weitere Spiele
   const kit = { area, hud, makeCanvas, horseImg, drawHorse, emoji, sky, cloud, loop, finish, cur: () => cur };
-  return { open, close, requestClose, FNS, HINTS, kit };
+  return { open, close, requestClose, FNS, HINTS, CUSTOM, LANDSCAPE, kit };
 })();
 
 // ===== Minispiele (Update 1.4): Ausritt, Dressur-Takt, Fliegen, Lasso, Ringstechen, Wasserlauf =====
@@ -4158,6 +4207,425 @@ const Games = (() => {
   });
 
   Object.assign(Games.FNS, { ausritt: Ausritt, dressur: Dressur, fliegen: Fliegen, lasso: Lasso, ring: Ring, wasser: Wasser, misten: Misten, flechten: Flechten });
+})();
+
+// ===== Bergfahrt (Hill-Climb): mit dem Pferd im Fahrzeug über Berg und Tal =====
+// Zwei Währungen: normale Münzen 🪙 (1:1 in den Geldbeutel) und Fahrzeugmünzen (nur für Garage: Fahrzeuge & Strecken)
+(() => {
+  const K = Games.kit;
+  const C = () => K.cur();
+  const PX = 20; // 1 Meter = 20 Pixel
+
+  const VEHICLES = [
+    { id: 'kutsche', name: 'Holzkutsche', price: 0, desc: 'Gemütlich und robust', r: [15, 15], base: 62, power: 560, vmax: 430, grip: 1.0, tank: 100, burn: 5.5, air: 9, color: '#A0703F' },
+    { id: 'traktor', name: 'Traktor', price: 5000, desc: 'Bärenstark am Berg', r: [22, 13], base: 60, power: 760, vmax: 360, grip: 1.35, tank: 120, burn: 6, air: 7, color: '#E03131' },
+    { id: 'gelaende', name: 'Geländewagen', price: 15000, desc: 'Schnell, tolle Federung', r: [17, 17], base: 70, power: 860, vmax: 580, grip: 1.15, tank: 125, burn: 6.5, air: 11, color: '#2F9E44' },
+    { id: 'einhorn', name: 'Einhornmobil', price: 50000, desc: 'Grip, Tempo, Riesentank ✨', r: [18, 18], base: 72, power: 980, vmax: 640, grip: 1.5, tank: 170, burn: 5.5, air: 13, color: '#F783AC', rainbow: true },
+  ];
+  const MAPS = [
+    { id: 'wiese', name: 'Hügelwiese', icon: '🌳', price: 0, g: 900, grip: 1, amp: 1, sky: ['#86CDF4', '#E2F4FF'], far: '#A8DCA0', ground: '#8B5A2B', top: '#5BAE4B', deco: 'tree', seed: 1 },
+    { id: 'wueste', name: 'Wüste', icon: '🏜️', price: 3000, g: 900, grip: 0.9, amp: 1.25, sky: ['#7FCBF2', '#FFF1D2'], far: '#F5D9A6', ground: '#D9A85E', top: '#F0C27D', deco: 'cactus', seed: 2 },
+    { id: 'winter', name: 'Winterland', icon: '❄️', price: 6000, g: 900, grip: 0.55, amp: 1.1, sky: ['#A9C9E8', '#EEF5FC'], far: '#DCE8F4', ground: '#9DB4CC', top: '#FFFFFF', deco: 'pine', seed: 3 },
+    { id: 'mond', name: 'Mond', icon: '🌙', price: 10000, g: 300, grip: 0.85, amp: 1.35, sky: ['#05061A', '#2A1F5C'], far: '#4A4766', ground: '#6E6B7C', top: '#B8B5C4', deco: 'crater', seed: 4, night: true },
+  ];
+  // Fahrzeugmünzen-Werte: kleine oft, große erst weiter hinten und selten
+  const FM_VALUES = [5, 10, 15, 20, 100, 500];
+
+  function hill() {
+    if (!S.hill || typeof S.hill !== 'object') S.hill = {};
+    const h = S.hill;
+    if (typeof h.fm !== 'number') h.fm = 0;
+    if (!Array.isArray(h.owned)) h.owned = ['kutsche', 'wiese'];
+    if (!h.vehicle) h.vehicle = 'kutsche';
+    if (!h.map) h.map = 'wiese';
+    if (!h.best) h.best = {};
+    return h;
+  }
+  // Fahrzeugmünze als Bild (Kutsche drauf)
+  function fmIcon(size = 18) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="flex:none;vertical-align:-3px"><circle cx="12" cy="12" r="11" fill="#FFB347" stroke="#C46A00" stroke-width="2"/><rect x="5.5" y="8" width="11" height="5" rx="1.5" fill="#8A4B12"/><path d="M16.5,10 L19,9" stroke="#8A4B12" stroke-width="1.5"/><circle cx="8" cy="15.5" r="2.3" fill="#8A4B12"/><circle cx="15" cy="15.5" r="2.3" fill="#8A4B12"/></svg>`;
+  }
+  function drawFm(ctx, x, y, r, val) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = val >= 500 ? '#C77DFF' : val >= 100 ? '#4DABF7' : '#FFB347';
+    ctx.strokeStyle = val >= 500 ? '#7B2CBF' : val >= 100 ? '#1C7ED6' : '#C46A00';
+    ctx.lineWidth = r * 0.18; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(-r * 0.5, -r * 0.45, r, r * 0.45); ctx.beginPath(); ctx.arc(-r * 0.3, r * 0.25, r * 0.2, 0, 7); ctx.arc(r * 0.3, r * 0.25, r * 0.2, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.round(r * 0.75)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 2.5; ctx.strokeText(val, 0, r * 0.62 + 4); ctx.fillText(val, 0, r * 0.62 + 4);
+    ctx.restore();
+  }
+  function vehIcon(v, w = 44) {
+    const c = v.color;
+    let body = '';
+    if (v.id === 'kutsche') body = `<rect x="6" y="10" width="30" height="12" rx="2" fill="${c}"/><path d="M6,14 h30 M6,18 h30" stroke="#6E4A2E" stroke-width="1"/><path d="M36,18 L44,14" stroke="#6E4A2E" stroke-width="2"/>`;
+    if (v.id === 'traktor') body = `<rect x="18" y="12" width="20" height="9" rx="2" fill="${c}"/><rect x="6" y="4" width="13" height="17" rx="2" fill="none" stroke="#343A40" stroke-width="2"/><rect x="6" y="14" width="13" height="7" fill="${c}"/><rect x="33" y="5" width="3" height="8" fill="#495057"/>`;
+    if (v.id === 'gelaende') body = `<path d="M4,20 L6,12 L14,12 L18,6 L30,6 L34,12 L42,13 L42,20 Z" fill="${c}"/><path d="M19,8 L29,8 L32,12 L17,12 Z" fill="#BFE6FF"/>`;
+    if (v.id === 'einhorn') body = `<path d="M4,20 Q6,8 20,8 Q36,8 42,16 L42,20 Z" fill="${c}"/><path d="M8,16 h30" stroke="#FFD43B" stroke-width="2"/><path d="M12,13 h24" stroke="#74C0FC" stroke-width="2"/><path d="M38,11 L46,2 L41,13 Z" fill="#FFE066"/>`;
+    const r1 = v.r[0] * 0.42, r2 = v.r[1] * 0.42;
+    return `<svg width="${w}" height="${w * 0.7}" viewBox="0 0 48 32">${body}<circle cx="12" cy="${26 - r1 + 3}" r="${r1}" fill="#212529"/><circle cx="12" cy="${26 - r1 + 3}" r="${r1 * 0.45}" fill="#ADB5BD"/><circle cx="36" cy="${26 - r2 + 3}" r="${r2}" fill="#212529"/><circle cx="36" cy="${26 - r2 + 3}" r="${r2 * 0.45}" fill="#ADB5BD"/></svg>`;
+  }
+
+  // ---------- Garage (Startbildschirm) ----------
+  function garage(a, g, api) {
+    const H = hill();
+    let armed = null;
+    const render = () => {
+      const tired = S.stats.energy < g.energy;
+      const vehCard = v => {
+        const own = H.owned.includes(v.id), on = H.vehicle === v.id, arm = armed === v.id;
+        return `<button class="gcard ${on ? 'on' : ''} ${own ? '' : 'locked'} ${arm ? 'armed' : ''}" data-v="${v.id}"><span class="gi2">${vehIcon(v)}</span><span class="gt2"><b>${v.name}</b><small>${v.desc}</small><span class="pr2">${on ? '✅ Gewählt' : own ? 'Wählen' : arm ? `Kaufen? ${fmIcon(13)} ${fmt(v.price)}` : `🔒 ${fmIcon(13)} ${fmt(v.price)}`}</span></span></button>`;
+      };
+      const mapCard = m => {
+        const own = H.owned.includes(m.id), on = H.map === m.id, arm = armed === m.id, best = H.best[m.id];
+        return `<button class="gcard ${on ? 'on' : ''} ${own ? '' : 'locked'} ${arm ? 'armed' : ''}" data-m="${m.id}"><span class="gi2">${m.icon}</span><span class="gt2"><b>${m.name}</b><small>${best ? `🏁 Rekord ${fmt(best)} m` : m.id === 'mond' ? 'Wenig Schwerkraft!' : m.id === 'winter' ? 'Rutschig!' : '&nbsp;'}</small><span class="pr2">${on ? '✅ Gewählt' : own ? 'Wählen' : arm ? `Kaufen? ${fmIcon(13)} ${fmt(m.price)}` : `🔒 ${fmIcon(13)} ${fmt(m.price)}`}</span></span></button>`;
+      };
+      a.innerHTML = `<div class="garage">
+        <div class="gh"><span style="font-size:20px">🚗 Garage</span><span style="flex:1"></span><span class="pill" style="display:flex;align-items:center;gap:5px">${fmIcon(18)} ${fmt(H.fm)}</span><span class="pill" style="color:${tired ? '#E8590C' : '#2B8A3E'}">⚡ ${Math.floor(S.stats.energy)} / ${g.energy}</span></div>
+        <div class="cols"><div class="col"><b class="t">Fahrzeuge</b><div class="grid">${VEHICLES.map(vehCard).join('')}</div></div>
+        <div class="col"><b class="t">Strecken</b><div class="grid">${MAPS.map(mapCard).join('')}</div></div></div>
+        <div style="display:flex;gap:8px;align-items:center"><span style="flex:1;font-size:12px;font-weight:700;color:var(--ink2)">Fahrzeugmünzen sammelst du unterwegs – und mit Saltos ↺ ↻ und Flugzeit! Normale 🪙 kommen in deinen Geldbeutel.</span>
+        <button class="btn" id="gBack" style="flex:none;padding:10px 16px">Zurück</button><button class="btn pri" id="gGo" style="flex:none;padding:10px 22px" ${tired ? 'disabled' : ''}>${tired ? '😴 Zu müde' : 'Losfahren! 🏁'}</button></div></div>`;
+    };
+    render();
+    a.onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      Snd.play('click');
+      if (b.id === 'gBack') { a.onclick = null; api.close(); return; }
+      if (b.id === 'gGo') { a.onclick = null; if (!api.launch({ vehicle: H.vehicle, map: H.map })) { toast('Dein Pferd ist zu müde 😴'); api.close(); } return; }
+      const id = b.dataset.v || b.dataset.m; if (!id) return;
+      const item = (b.dataset.v ? VEHICLES : MAPS).find(x => x.id === id);
+      if (H.owned.includes(id)) { if (b.dataset.v) H.vehicle = id; else H.map = id; armed = null; save(); render(); return; }
+      if (armed !== id) { armed = id; render(); return; }
+      if (H.fm < item.price) { Snd.play('nope'); toast(`Dir fehlen noch ${fmt(item.price - H.fm)} Fahrzeugmünzen 🚗`); armed = null; render(); return; }
+      H.fm -= item.price; H.owned.push(id); if (b.dataset.v) H.vehicle = id; else H.map = id; armed = null; save(); Snd.play('win'); render();
+    };
+  }
+
+  // ---------- Das Spiel ----------
+  function Bergfahrt(opt) {
+    const H = hill();
+    const V = VEHICLES.find(v => v.id === opt.vehicle) || VEHICLES[0];
+    const M = MAPS.find(m => m.id === opt.map) || MAPS[0];
+    const a = K.area();
+    const { c, ctx, W, H: SH } = K.makeCanvas();
+    const z = SH / 330; // Zoom: Weltgröße passend zur Bildschirmhöhe
+    // Bedienknöpfe
+    a.insertAdjacentHTML('beforeend', `<button class="hcbtn" id="hcBrake" style="left:14px;background:#E8590C"><span class="ic">🛑</span>Bremse</button><button class="hcbtn" id="hcGas" style="right:14px;background:#2F9E44"><span class="ic">⛽</span>Gas</button>`);
+    const keys = { gas: false, brake: false };
+    const bind = (id, k) => {
+      const el = a.querySelector('#' + id);
+      const on = e => { e.preventDefault(); keys[k] = true; el.classList.add('on'); try { el.setPointerCapture(e.pointerId); } catch (err) { } };
+      const off = e => { keys[k] = false; el.classList.remove('on'); };
+      el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
+    };
+    bind('hcGas', 'gas'); bind('hcBrake', 'brake');
+
+    // Strecke
+    const sr = (n => () => { n = (n * 1664525 + 1013904223) >>> 0; return n / 4294967296; })(M.seed * 7919);
+    const ph = [sr() * 6, sr() * 6, sr() * 6, sr() * 6];
+    const groundY = x => {
+      if (x < 300) return 0;
+      const ramp = Math.min(1, (x - 300) / 700);
+      const A = M.amp * (40 + Math.min(140, x * 0.0085)) * ramp;
+      return -A * (0.55 * Math.sin(x * 0.0045 + ph[0]) + 0.3 * Math.sin(x * 0.011 + ph[1]) + 0.15 * Math.sin(x * 0.027 + ph[2])) + A * 0.55 * Math.sin(ph[0]) * 0;
+    };
+    const slope = x => (groundY(x + 2) - groundY(x - 2)) / 4;
+
+    // Gegenstände entlang der Strecke (in Abschnitten erzeugt)
+    const items = [];
+    let genTo = 400, nextFuel = 250 * PX;
+    const rnd = (k => () => { k = (k * 1103515245 + 12345) >>> 0; return k / 4294967296; })(M.seed * 31 + Date.now() % 9973);
+    function pickFm(m) {
+      const w = [[5, 60], [10, m > 150 ? 22 : 0], [15, m > 300 ? 14 : 0], [20, m > 450 ? 10 : 0], [100, m > 650 ? 3 : 0], [500, m > 1100 ? 0.7 : 0]];
+      let t = w.reduce((s, x) => s + x[1], 0), r = rnd() * t;
+      for (const [v, p] of w) { if ((r -= p) < 0) return v; }
+      return 5;
+    }
+    function generate(to) {
+      while (genTo < to) {
+        const x0 = genTo, m = x0 / PX;
+        if (x0 >= nextFuel) { items.push({ k: 'fuel', x: x0, y: groundY(x0) - 26 }); nextFuel += (300 + m * 0.15) * PX; }
+        else if (rnd() < 0.42) {
+          const v = pickFm(m);
+          if (v >= 100) items.push({ k: 'fm', v, x: x0, y: groundY(x0) - 60 - rnd() * 40 });
+          else for (let i = 0; i < 5; i++) { const x = x0 + i * 30; items.push({ k: 'fm', v, x, y: groundY(x) - 34 }); }
+        } else if (rnd() < 0.08) items.push({ k: 'coin', x: x0, y: groundY(x0) - 40 });
+        genTo += 200;
+      }
+    }
+
+    // Fahrzeug: zwei Räder (Verlet) mit fester Achse
+    const r0 = V.r[0], r1 = V.r[1];
+    const sx = 120;
+    const wh = [
+      { x: sx, y: groundY(sx) - r0, ox: sx, oy: groundY(sx) - r0, r: r0, g: false, rot: 0 },
+      { x: sx + V.base, y: groundY(sx + V.base) - r1, ox: sx + V.base, oy: groundY(sx + V.base) - r1, r: r1, g: false, rot: 0 },
+    ];
+    let t = 0, fuel = V.tank, dist = 0, maxX = sx, fmRun = 0, coinsRun = 0, flipsRun = 0, ended = false, stillT = 0;
+    let air = false, airStart = 0, angAcc = 0, lastAng = 0, camX = 0, camY = groundY(sx) - 200, trail = [];
+    const pops = [];
+    const pop = (txt, col) => pops.push({ txt, col, t: 0 });
+
+    // Pferdekopf für den Fahrersitz
+    const headImg = new Image();
+    (() => {
+      let svg = horseSVG(S.horse, { anim: false, mood: 'happy', clean: S.stats.clean });
+      const gg = horseSVG.geo, T = (x, y) => [170 + (x - 170) * gg.scale, 285 + (y - 285) * gg.scale];
+      const [x1, y1] = T(gg.hx - gg.R * 1.7, gg.hy - gg.R * 1.9), [x2, y2] = T(gg.hx + gg.R * 2.2, gg.hy + gg.R * 2.1);
+      svg = svg.replace('viewBox="0 -60 340 360"', `viewBox="${x1.toFixed(1)} ${y1.toFixed(1)} ${(x2 - x1).toFixed(1)} ${(y2 - y1).toFixed(1)}" width="200" height="${(200 * (y2 - y1) / (x2 - x1)).toFixed(0)}"`);
+      headImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    })();
+
+    // Motorgeräusch
+    let eng = null;
+    if (Snd.ok()) {
+      const ac = Snd.ctx, o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; o2.type = 'square'; o.frequency.value = 55; o2.frequency.value = 27.5;
+      f.type = 'lowpass'; f.frequency.value = 500; g.gain.value = 0.0001;
+      o.connect(f); o2.connect(f); f.connect(g).connect(Snd.sfx); o.start(); o2.start();
+      eng = { o, o2, f, g };
+    }
+    const engStop = () => { if (!eng) return; try { eng.g.gain.setTargetAtTime(0, Snd.ctx.currentTime, 0.05); setTimeout(() => { try { eng.o.stop(); eng.o2.stop(); } catch (e) { } }, 300); } catch (e) { } eng = null; };
+
+    const center = () => ({ x: (wh[0].x + wh[1].x) / 2, y: (wh[0].y + wh[1].y) / 2 });
+    const angle = () => Math.atan2(wh[1].y - wh[0].y, wh[1].x - wh[0].x);
+    const local = (lx, ly) => { const cc = center(), an = angle(), cs = Math.cos(an), sn = Math.sin(an); return { x: cc.x + lx * cs - ly * sn, y: cc.y + lx * sn + ly * cs }; };
+    const rotateAll = da => {
+      const cc = center(), cs = Math.cos(da), sn = Math.sin(da);
+      for (const w of wh) { const dx = w.x - cc.x, dy = w.y - cc.y; w.x = cc.x + dx * cs - dy * sn; w.y = cc.y + dx * sn + dy * cs; }
+    };
+    const headLocal = { x: V.base * 0.02, y: -(Math.max(r0, r1) + 52) };
+    const roof = [{ x: -V.base * 0.45, y: -(Math.max(r0, r1) + 26) }, { x: V.base * 0.45, y: -(Math.max(r0, r1) + 26) }];
+
+    function end(reason) {
+      if (ended) return;
+      ended = true; C().paused = true; engStop();
+      const m = Math.floor(dist);
+      const rec = m > (H.best[M.id] || 0); if (rec) H.best[M.id] = m;
+      save();
+      Snd.play(reason === 'crash' ? 'hurt' : 'nope');
+      const why = reason === 'crash' ? 'Kopf auf dem Boden 😵‍💫 – Puh, alles gut!' : 'Tank leer! ⛽';
+      setTimeout(() => K.finish('hill', m, coinsRun, `${why}<br>🏁 ${fmt(m)} m${rec ? ' · neuer Rekord!' : ''} auf ${M.name}<br>${fmIcon(16)} +${fmt(fmRun)} Fahrzeugmünzen${flipsRun ? ` · ${flipsRun}× Salto` : ''}`), 900);
+    }
+
+    function physics(dt) {
+      const g = M.g, grip = V.grip * M.grip;
+      const gas = keys.gas && fuel > 0, brake = keys.brake;
+      for (const w of wh) {
+        const vx = (w.x - w.ox) * 0.999, vy = (w.y - w.oy) * 0.999;
+        w.ox = w.x; w.oy = w.y;
+        w.x += vx; w.y += vy + g * dt * dt;
+      }
+      // Antrieb am Boden
+      for (const w of wh) {
+        if (!w.g) continue;
+        const s = slope(w.x), n = Math.hypot(1, s), tx = 1 / n, ty = s / n;
+        const vt = ((w.x - w.ox) * tx + (w.y - w.oy) * ty) / dt;
+        if (gas && vt < V.vmax) { const acc = V.power * Math.min(1.2, grip) * dt * dt * 0.5; w.x += tx * acc; w.y += ty * acc; }
+        if (brake) {
+          if (vt > 20) { const k = 0.06 * Math.min(1, grip); w.ox += (w.x - w.ox) * k; w.oy += (w.y - w.oy) * k; }
+          else if (vt > -V.vmax * 0.35) { const acc = V.power * 0.35 * dt * dt * 0.5; w.x -= tx * acc; w.y -= ty * acc; }
+        }
+      }
+      // Kippen: in der Luft stark, am Boden leicht (Wheelie)
+      const inAir = !wh[0].g && !wh[1].g;
+      const tq = (gas || (keys.gas && fuel <= 0) ? -1 : 0) + (brake ? 1 : 0);
+      if (tq) rotateAll(tq * V.air * (inAir ? 1 : 0.22) * dt * dt);
+      // feste Achse
+      for (let k = 0; k < 4; k++) {
+        const dx = wh[1].x - wh[0].x, dy = wh[1].y - wh[0].y, d = Math.hypot(dx, dy) || 1, diff = (d - V.base) / d * 0.5;
+        wh[0].x += dx * diff; wh[0].y += dy * diff; wh[1].x -= dx * diff; wh[1].y -= dy * diff;
+      }
+      // Boden
+      for (const w of wh) {
+        const gy = groundY(w.x), s = slope(w.x), n = Math.hypot(1, s), nx = s / n, ny = -1 / n;
+        const pen = (w.y + w.r - gy) / n;
+        w.g = pen > -1.5;
+        if (pen > 0) {
+          w.x += nx * pen; w.y += ny * pen;
+          let vx = w.x - w.ox, vy = w.y - w.oy;
+          const vn = vx * nx + vy * ny;
+          if (vn < 0) { vx -= nx * vn * 1.15; vy -= ny * vn * 1.15; }
+          // Rollreibung, bei Glätte weniger
+          const roll = 0.0015 + (keys.gas || keys.brake ? 0 : 0.004 * Math.min(1, grip));
+          vx *= 1 - roll; vy *= 1 - roll;
+          w.ox = w.x - vx; w.oy = w.y - vy;
+        }
+        w.rot += (w.x - w.ox) / w.r;
+      }
+      // Tank
+      fuel = Math.max(0, fuel - dt * (gas ? V.burn : V.burn * 0.12) * (100 / V.tank) * (V.tank / 100));
+    }
+
+    function step(dt) {
+      t += dt;
+      const sub = 3, h = dt / sub;
+      for (let i = 0; i < sub; i++) physics(h);
+      const cc = center(), an = angle();
+      dist = Math.max(dist, (cc.x - sx) / PX);
+      generate(cc.x + 1600);
+      // Saltos & Flugzeit
+      const inAir = !wh[0].g && !wh[1].g;
+      if (inAir && !air) { air = true; airStart = t; angAcc = 0; lastAng = an; }
+      if (air) {
+        let d = an - lastAng; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+        angAcc += d; lastAng = an;
+        if (!inAir) {
+          air = false;
+          const at = t - airStart, flips = Math.floor((Math.abs(angAcc) + 0.8) / (2 * Math.PI));
+          if (flips >= 1) {
+            const back = angAcc < 0, val = 100 * flips * (flips > 1 ? 2 : 1);
+            fmRun += val; H.fm += val; flipsRun += flips;
+            pop(`${flips > 1 ? flips + '× ' : ''}${back ? 'Rückwärtssalto' : 'Vorwärtssalto'}! +${val}`, '#FFE066'); Snd.play('win');
+          }
+          if (at > 0.8) { const val = Math.round(at * 25); fmRun += val; H.fm += val; pop(`Flug ${at.toFixed(1).replace('.', ',')} s +${val}`, '#99E9F2'); Snd.play('coin'); }
+          Snd.play('land');
+        }
+      }
+      // Unfall: Kopf oder Dach am Boden
+      if (t > 0.5) {
+        const hp = local(headLocal.x, headLocal.y);
+        if (hp.y > groundY(hp.x) - 2) return end('crash');
+        for (const rp of roof) { const p = local(rp.x, rp.y); if (p.y > groundY(p.x) - 1 && Math.abs(an) > 1.3) return end('crash'); }
+      }
+      // Tank leer → stehen geblieben
+      const sp = Math.hypot(wh[0].x - wh[0].ox, wh[0].y - wh[0].oy) / (dt / sub);
+      if (fuel <= 0 && sp < 25) { stillT += dt; if (stillT > 1.4) return end('fuel'); } else stillT = 0;
+      // Einsammeln
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        if (it.x < cc.x - 600) { items.splice(i, 1); continue; }
+        const near = [cc, local(headLocal.x, headLocal.y), wh[0], wh[1]].some(p => Math.hypot(p.x - it.x, p.y - it.y) < (it.k === 'fm' && it.v >= 100 ? 40 : 32));
+        if (!near) continue;
+        items.splice(i, 1);
+        if (it.k === 'fuel') { fuel = V.tank; Snd.play('slurp'); pop('Vollgetankt! ⛽', '#B2F2BB'); }
+        else if (it.k === 'coin') { coinsRun++; Snd.play('coin'); pop('+1 🪙', '#FFE066'); }
+        else { fmRun += it.v; H.fm += it.v; Snd.play(it.v >= 100 ? 'sparkle' : 'coin'); if (it.v >= 100) pop(`+${it.v}!`, it.v >= 500 ? '#E599F7' : '#74C0FC'); }
+      }
+      if (V.rainbow) { trail.push({ x: wh[0].x, y: wh[0].y }); if (trail.length > 40) trail.shift(); }
+      // Motor
+      if (eng) {
+        const ac = Snd.ctx.currentTime, rev = keys.gas && fuel > 0 ? 1 : 0.35;
+        const f0 = 45 + Math.min(1, sp / V.vmax) * 70 + rev * 25;
+        eng.o.frequency.setTargetAtTime(f0, ac, 0.05); eng.o2.frequency.setTargetAtTime(f0 / 2, ac, 0.05);
+        eng.f.frequency.setTargetAtTime(300 + rev * 700, ac, 0.05);
+        eng.g.gain.setTargetAtTime(fuel > 0 ? 0.05 + rev * 0.05 : 0.0001, ac, 0.08);
+      }
+      // HUD
+      K.hud(`🏁 ${fmt(dist)} m`, `<span style="display:inline-flex;align-items:center;gap:4px">${fmIcon(16)} ${fmt(fmRun)}</span> · 🪙 ${coinsRun}`);
+    }
+
+    function draw(dt) {
+      const cc = center();
+      camX += (cc.x - W / z * 0.32 - camX) * Math.min(1, dt * 6);
+      camY += (cc.y - SH / z * 0.58 - camY) * Math.min(1, dt * 4);
+      const X = x => (x - camX) * z, Y = y => (y - camY) * z;
+      // Himmel
+      const gr = ctx.createLinearGradient(0, 0, 0, SH); gr.addColorStop(0, M.sky[0]); gr.addColorStop(1, M.sky[1]);
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, SH);
+      if (M.night) { ctx.fillStyle = '#fff'; for (let i = 0; i < 50; i++) { const x = ((i * 137 - camX * 0.05) % W + W) % W, y = (i * 59) % (SH * 0.6); ctx.fillRect(x, y, 2, 2); } ctx.fillStyle = '#3D8BFF'; ctx.beginPath(); ctx.arc(W * 0.8, SH * 0.2, SH * 0.08, 0, 7); ctx.fill(); ctx.fillStyle = '#4CB868'; ctx.beginPath(); ctx.arc(W * 0.79, SH * 0.19, SH * 0.035, 0, 7); ctx.fill(); }
+      else { ctx.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 4; i++) { const x = ((i * 330 - camX * 0.1 * z) % (W + 200) + W + 200) % (W + 200) - 100, y = SH * (0.1 + (i % 2) * 0.08); ctx.beginPath(); ctx.ellipse(x, y, 40, 14, 0, 0, 7); ctx.arc(x - 16, y - 7, 15, 0, 7); ctx.arc(x + 10, y - 11, 18, 0, 7); ctx.fill(); } }
+      // ferne Hügel
+      ctx.fillStyle = M.far; ctx.beginPath(); ctx.moveTo(0, SH);
+      for (let x = 0; x <= W; x += 12) ctx.lineTo(x, SH * 0.55 - Math.sin((x + camX * z * 0.3) / 140) * SH * 0.08 - Math.sin((x + camX * z * 0.3) / 57) * SH * 0.03);
+      ctx.lineTo(W, SH); ctx.fill();
+      // Deko hinter der Strecke
+      const x0 = camX - 60, x1 = camX + W / z + 60;
+      for (let x = Math.floor(x0 / 260) * 260; x < x1; x += 260) {
+        const k = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1; if (k < 0.35) continue;
+        const gy = groundY(x), sxp = X(x), syp = Y(gy);
+        ctx.save(); ctx.translate(sxp, syp); ctx.scale(z, z);
+        if (M.deco === 'tree') { ctx.fillStyle = '#7A5638'; ctx.fillRect(-5, -50, 10, 52); ctx.fillStyle = '#4FA05C'; ctx.beginPath(); ctx.arc(0, -62, 26, 0, 7); ctx.arc(-18, -50, 18, 0, 7); ctx.arc(18, -50, 18, 0, 7); ctx.fill(); }
+        else if (M.deco === 'cactus') { ctx.fillStyle = '#3EA65A'; ctx.fillRect(-6, -56, 12, 58); ctx.fillRect(-20, -40, 8, 18); ctx.fillRect(-20, -26, 16, 8); ctx.fillRect(12, -46, 8, 16); ctx.fillRect(4, -34, 16, 8); }
+        else if (M.deco === 'pine') { ctx.fillStyle = '#6B4A2E'; ctx.fillRect(-4, -14, 8, 16); for (let i = 0; i < 3; i++) { ctx.fillStyle = '#2F7A5A'; ctx.beginPath(); ctx.moveTo(-24 + i * 5, -12 - i * 18); ctx.lineTo(0, -40 - i * 18); ctx.lineTo(24 - i * 5, -12 - i * 18); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-8, -30 - i * 18); ctx.lineTo(0, -40 - i * 18); ctx.lineTo(8, -30 - i * 18); ctx.fill(); } }
+        else if (M.deco === 'crater') { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 10, 30, 7, 0, 0, 7); ctx.fill(); }
+        ctx.restore();
+      }
+      // Boden
+      ctx.beginPath(); ctx.moveTo(X(x0), SH + 10);
+      for (let x = x0; x <= x1; x += 8) ctx.lineTo(X(x), Y(groundY(x)));
+      ctx.lineTo(X(x1), SH + 10); ctx.closePath();
+      ctx.fillStyle = M.ground; ctx.fill();
+      ctx.strokeStyle = M.top; ctx.lineWidth = 9 * z; ctx.lineJoin = 'round'; ctx.beginPath();
+      for (let x = x0; x <= x1; x += 8) { const yy = Y(groundY(x)) + 3 * z; if (x === x0) ctx.moveTo(X(x), yy); else ctx.lineTo(X(x), yy); }
+      ctx.stroke();
+      // Meter-Schilder alle 100 m
+      for (let m = Math.ceil(x0 / PX / 100) * 100; m * PX < x1; m += 100) { if (m <= 0) continue; const x = sx + m * PX; ctx.fillStyle = '#fff'; ctx.fillRect(X(x) - 1, Y(groundY(x)) - 34 * z, 3 * z, 34 * z); ctx.font = `900 ${12 * z}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.fillStyle = M.night ? '#fff' : '#3A2D4A'; ctx.fillText(m + ' m', X(x), Y(groundY(x)) - 38 * z); }
+      // Gegenstände
+      for (const it of items) {
+        if (it.x < x0 || it.x > x1) continue;
+        const ix = X(it.x), iy = Y(it.y + Math.sin(t * 3 + it.x) * 3);
+        if (it.k === 'fuel') { ctx.fillStyle = '#E03131'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(ix - 12 * z, iy - 15 * z, 24 * z, 30 * z, 5 * z) : ctx.rect(ix - 12 * z, iy - 15 * z, 24 * z, 30 * z); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `900 ${12 * z}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⛽', ix, iy + 2 * z); }
+        else if (it.k === 'coin') K.emoji(ctx, '🪙', ix, iy, 26 * z);
+        else drawFm(ctx, ix, iy, (it.v >= 100 ? 17 : 12) * z, it.v);
+      }
+      // Regenbogen-Spur
+      if (trail.length > 2) { const cols = RAINBOW; for (let k = 0; k < cols.length; k++) { ctx.strokeStyle = cols[k]; ctx.globalAlpha = 0.55; ctx.lineWidth = 3 * z; ctx.beginPath(); trail.forEach((p, i) => { const yy = Y(p.y) + (k - 2.5) * 3 * z; if (i === 0) ctx.moveTo(X(p.x), yy); else ctx.lineTo(X(p.x), yy); }); ctx.stroke(); } ctx.globalAlpha = 1; }
+      // Fahrzeug
+      const an = angle();
+      ctx.save(); ctx.translate(X(cc.x), Y(cc.y)); ctx.rotate(an); ctx.scale(z, z);
+      const R = Math.max(r0, r1), b = V.base, top = -R - 6;
+      // Pferd auf dem Sitz
+      const bob = Math.sin(t * 9) * (keys.gas ? 1.2 : 0.4);
+      if (headImg.complete && headImg.naturalWidth) { const hw = 66, hh = hw * headImg.naturalHeight / headImg.naturalWidth; ctx.drawImage(headImg, -hw * 0.55 + b * 0.02, top - hh * 0.92 + bob, hw, hh); }
+      const col = V.color;
+      if (V.id === 'kutsche') {
+        ctx.fillStyle = col; ctx.fillRect(-b * 0.6, top - 14, b * 1.2, 18);
+        ctx.strokeStyle = '#6E4A2E'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-b * 0.6, top - 8); ctx.lineTo(b * 0.6, top - 8); ctx.moveTo(-b * 0.6, top - 2); ctx.lineTo(b * 0.6, top - 2); ctx.stroke();
+        ctx.strokeStyle = '#6E4A2E'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(b * 0.6, top - 4); ctx.lineTo(b * 0.85, top - 14); ctx.stroke();
+        ctx.fillStyle = '#C92A2A'; ctx.fillRect(-b * 0.35, top - 18, b * 0.5, 5);
+      } else if (V.id === 'traktor') {
+        ctx.fillStyle = col; ctx.fillRect(-b * 0.15, top - 16, b * 0.75, 20);
+        ctx.strokeStyle = '#343A40'; ctx.lineWidth = 3.5; ctx.strokeRect(-b * 0.62, top - 46, b * 0.46, 50);
+        ctx.fillStyle = col; ctx.fillRect(-b * 0.62, top - 12, b * 0.46, 16);
+        ctx.fillStyle = '#495057'; ctx.fillRect(b * 0.4, top - 30, 5, 16);
+        if (keys.gas && fuel > 0 && Math.random() < 0.5) { ctx.fillStyle = 'rgba(120,120,120,.5)'; ctx.beginPath(); ctx.arc(b * 0.42 - Math.random() * 10, top - 36 - Math.random() * 10, 4 + Math.random() * 4, 0, 7); ctx.fill(); }
+      } else if (V.id === 'gelaende') {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-b * 0.62, top + 4); ctx.lineTo(-b * 0.6, top - 16); ctx.lineTo(b * 0.25, top - 16); ctx.lineTo(b * 0.42, top - 6); ctx.lineTo(b * 0.66, top - 4); ctx.lineTo(b * 0.66, top + 4); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#343A40'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-b * 0.5, top - 16); ctx.lineTo(-b * 0.45, top - 44); ctx.lineTo(b * 0.1, top - 44); ctx.lineTo(b * 0.2, top - 16); ctx.stroke();
+        ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.arc(-b * 0.68, top - 6, 8, 0, 7); ctx.fill();
+      } else {
+        const gg = ctx.createLinearGradient(-b * 0.6, 0, b * 0.6, 0); RAINBOW.forEach((c2, i) => gg.addColorStop(i / 5, c2));
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-b * 0.62, top + 4); ctx.quadraticCurveTo(-b * 0.6, top - 20, -b * 0.1, top - 18); ctx.quadraticCurveTo(b * 0.5, top - 18, b * 0.68, top - 2); ctx.lineTo(b * 0.68, top + 4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = gg; ctx.fillRect(-b * 0.55, top - 6, b * 1.2, 4);
+        ctx.fillStyle = '#FFE066'; ctx.beginPath(); ctx.moveTo(b * 0.5, top - 14); ctx.lineTo(b * 0.78, top - 34); ctx.lineTo(b * 0.6, top - 10); ctx.fill();
+        if (Math.random() < 0.3) { ctx.fillStyle = '#FFF59D'; ctx.fillRect(-b * 0.6 + Math.random() * b * 1.2, top - 20 - Math.random() * 20, 3, 3); }
+      }
+      ctx.restore();
+      // Räder
+      for (const w of wh) {
+        ctx.save(); ctx.translate(X(w.x), Y(w.y)); ctx.scale(z, z); ctx.rotate(w.rot);
+        ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.arc(0, 0, w.r, 0, 7); ctx.fill();
+        ctx.fillStyle = V.id === 'kutsche' ? '#C9A46A' : V.id === 'einhorn' ? '#FFD8EC' : '#ADB5BD'; ctx.beginPath(); ctx.arc(0, 0, w.r * 0.55, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#495057'; ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(k * 1.57) * w.r * 0.55, Math.sin(k * 1.57) * w.r * 0.55); ctx.stroke(); }
+        ctx.restore();
+      }
+      // Tankanzeige
+      const fw = Math.min(200, W * 0.24), fx = 12, fy = 10;
+      ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(fx, fy, fw + 40, 26, 13) : ctx.rect(fx, fy, fw + 40, 26); ctx.fill();
+      ctx.font = '18px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('⛽', fx + 6, fy + 13);
+      const fr = fuel / V.tank;
+      ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(fx + 32, fy + 7, fw, 12);
+      ctx.fillStyle = fr < 0.25 ? (Math.floor(t * 4) % 2 ? '#FA5252' : '#FFA8A8') : fr < 0.5 ? '#FAB005' : '#40C057'; ctx.fillRect(fx + 32, fy + 7, fw * fr, 12);
+      // Meldungen
+      let py = SH * 0.3;
+      for (const p of pops) { p.t += dt; ctx.globalAlpha = Math.max(0, 1 - p.t / 1.6); ctx.font = `900 ${Math.round(SH * 0.07)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.strokeText(p.txt, W / 2, py - p.t * 30); ctx.fillStyle = p.col; ctx.fillText(p.txt, W / 2, py - p.t * 30); py += SH * 0.08; }
+      ctx.globalAlpha = 1;
+      while (pops.length && pops[0].t > 1.6) pops.shift();
+      if (t < 3) { ctx.globalAlpha = Math.min(1, 3 - t); ctx.font = `900 ${Math.round(SH * 0.06)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.strokeText('Gas geben! In der Luft: Gas = Salto rückwärts, Bremse = vorwärts', W / 2, SH * 0.2); ctx.fillStyle = '#fff'; ctx.fillText('Gas geben! In der Luft: Gas = Salto rückwärts, Bremse = vorwärts', W / 2, SH * 0.2); ctx.globalAlpha = 1; }
+    }
+
+    generate(4000);
+    K.loop(dt => { if (!ended) step(dt); draw(dt); });
+    return { stop() { engStop(); } };
+  }
+
+  Object.assign(Games.FNS, { hill: Bergfahrt });
+  Games.CUSTOM.hill = garage;
+  Games.LANDSCAPE.hill = true;
+  window.HillData = { VEHICLES, MAPS, hill };
 })();
 
 </script>
