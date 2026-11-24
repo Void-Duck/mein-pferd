@@ -72,9 +72,9 @@ input { font-family: inherit; }
 .coins.bump { animation: bump .45s; }
 @keyframes bump { 40% { transform: scale(1.18); } }
 .iconbtn { width: 40px; height: 40px; border-radius: 14px; background: var(--card); font-size: 20px; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .08); flex: none; }
-.bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
 .bar { background: var(--card); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 14px; padding: 5px 7px 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .07); }
-.bar .lbl { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--ink2); margin-bottom: 3px; }
+.bar .lbl { display: flex; justify-content: space-between; gap: 2px; white-space: nowrap; font-size: 13px; font-weight: 800; color: var(--ink2); margin-bottom: 3px; }
 .bar .track { height: 11px; background: rgba(58, 45, 74, .1); border-radius: 8px; overflow: hidden; }
 .bar .fill { height: 100%; border-radius: 8px; transition: width .5s, background-color .5s; position: relative; }
 .bar .fill::after { content: ""; position: absolute; left: 4px; right: 4px; top: 2px; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, .45); }
@@ -265,6 +265,11 @@ body[data-phase=night] .horsebox { filter: brightness(.8) saturate(.85); }
 body[data-phase=evening] .horsebox { filter: brightness(.9) saturate(.95); }
 body[data-phase=dusk] .horsebox { filter: sepia(.12) saturate(1.1); }
 body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
+.zzz { animation: zzz 2.7s ease-in-out infinite; opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes zzz { 0% { opacity: 0; transform: translate(0, 8px) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(14px, -22px) scale(1.15); } }
+
+.gamecard.tired { opacity: .62; }
+.gamecard.tired .play { background: #ADB5BD; box-shadow: 0 3px 0 #868E96; }
 
 </style>
 </head>
@@ -280,9 +285,10 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
         <button class="iconbtn" id="btnSettings" aria-label="Einstellungen">⚙️</button>
       </div>
       <div class="bars">
-        <div class="bar" id="bHunger"><div class="lbl"><span>🍎 Hunger</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
-        <div class="bar" id="bFun"><div class="lbl"><span>😄 Spaß</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
-        <div class="bar" id="bClean"><div class="lbl"><span>🛁 Sauber</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
+        <div class="bar" id="bHunger"><div class="lbl"><span>🍎</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
+        <div class="bar" id="bFun"><div class="lbl"><span>😄</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
+        <div class="bar" id="bClean"><div class="lbl"><span>🛁</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
+        <div class="bar" id="bEnergy"><div class="lbl"><span>⚡</span><span class="val"></span></div><div class="track"><div class="fill"></div></div></div>
       </div>
     </div>
 
@@ -300,9 +306,11 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
         <section class="panel" id="centerStage">
           <div id="flies" style="position:absolute;left:25%;right:25%;top:35%;height:30%;pointer-events:none"></div>
           <div class="horsebox" id="centerBox"><div class="hwrap"></div></div>
+          <div id="awayHint" class="hidden" style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);background:var(--card);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:24px;padding:18px 20px;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.18);width:min(300px,80%);z-index:3"><div style="font-size:42px">🌙</div><div style="font-weight:900;font-size:18px;margin:4px 0"><span id="awayName"></span> schläft im Stall</div><div style="color:var(--ink2);font-weight:700;font-size:14px;margin-bottom:12px">Schlafenszeit ist von 20 bis 7 Uhr</div><button class="btn pri" id="awayGo" style="width:100%">🛏️ Zum Stall</button></div>
           <div class="sidebtns">
             <button class="sidebtn" id="btnShop">🛍️<span>Shop</span></button>
             <button class="sidebtn" id="btnScene">🏞️<span>Ort</span></button>
+            <button class="sidebtn" id="btnSleep">😴<span>Schlafen</span></button>
           </div>
           <div class="tools" id="tools"></div>
         </section>
@@ -368,7 +376,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 // WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
 // Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
@@ -376,6 +384,7 @@ const APP_VERSION = '1.3.0';
 
 // „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
 const CHANGELOG = [
+  { v: '1.4.0', items: ['Neuer Energie-Balken ⚡ – Minispiele machen müde', 'Ab 20 Uhr schläft dein Pferd im Stall 🌙 – tippe es an, um es zu wecken', 'Nickerchen im Stall: 😴-Knopf', 'Zucker & Leckerli geben Energie (je 5 pro Tag)', '6 neue Minispiele: Dressur-Takt, Ausritt, Fliegen verscheuchen, Lasso, Ringstechen, Wasserlauf'] },
   { v: '1.3.0', items: ['Updates kommen jetzt beim ersten Öffnen an', 'Automatische Sicherungen der letzten 3 Tage (⚙️ Einstellungen)'] },
 ];
 
@@ -458,8 +467,8 @@ const FOODS = [
   { id: 'karotte', name: 'Karotte', icon: '🥕', price: 3, hunger: 16, fun: 6, text: 'Knack! Lecker!' },
   { id: 'apfel', name: 'Apfel', icon: '🍎', price: 4, hunger: 18, fun: 7, text: 'Mmmh, saftig!' },
   { id: 'banane', name: 'Banane', icon: '🍌', price: 5, hunger: 18, fun: 9, text: 'Ungewöhnlich, aber gut!' },
-  { id: 'zucker', name: 'Zuckerstück', icon: '🧊', price: 2, hunger: 3, fun: 10, text: 'Süüüß!' },
-  { id: 'leckerli', name: 'Leckerli', icon: '🍪', price: 6, hunger: 8, fun: 16, text: 'Mehr davon!' },
+  { id: 'zucker', name: 'Zuckerstück', icon: '🧊', price: 20, hunger: 3, fun: 10, energy: 20, sweet: true, text: 'Süüüß! Ich bin wieder wach!' },
+  { id: 'leckerli', name: 'Leckerli', icon: '🍪', price: 60, hunger: 8, fun: 16, energy: 20, sweet: true, text: 'Mehr davon! Jetzt hab ich Power!' },
   { id: 'melone', name: 'Melone', icon: '🍉', price: 8, hunger: 22, fun: 12, text: 'Erfrischend!' },
   { id: 'muesli', name: 'Pferdemüsli', icon: '🥣', price: 10, hunger: 40, fun: 5, text: 'Das macht richtig satt!' },
   { id: 'kraeuter', name: 'Kräuterheu', icon: '🌼', price: 12, hunger: 45, fun: 8, text: 'Wie das duftet!' },
@@ -566,20 +575,33 @@ const SCENES = [
 ];
 
 const GAMES = [
-  { id: 'springen', name: 'Springreiten', icon: '🏇', desc: 'Tippe zum Springen über die Hindernisse.', color: '#4FB0FF' },
-  { id: 'aepfel', name: 'Äpfel fangen', icon: '🍎', desc: 'Fange Äpfel, weiche Bienen und Steinen aus.', color: '#FF6B6B' },
-  { id: 'memory', name: 'Hufeisen-Memory', icon: '🃏', desc: 'Finde alle Paare mit möglichst wenigen Zügen.', color: '#B07CFF' },
-  { id: 'karotten', name: 'Karotten-Tippen', icon: '🥕', desc: 'Tippe die Karotten, bevor sie verschwinden.', color: '#FF9F43' },
-  { id: 'rennen', name: 'Wettrennen', icon: '🏁', desc: 'Tippe abwechselnd links und rechts und gewinne das Rennen!', color: '#3CCB9A' },
-  { id: 'werfen', name: 'Hufeisenwerfen', icon: '🎯', desc: 'Triff mit dem Hufeisen den Pflock.', color: '#5C7CFA' },
-  { id: 'simon', name: 'Futter merken', icon: '🎵', desc: 'Merk dir, in welcher Reihenfolge das Futter leuchtet.', color: '#F06595' },
-  { id: 'quiz', name: 'Pferde-Quiz', icon: '❓', desc: 'Wie viel weißt du über Pferde?', color: '#FAB005' },
+  { id: 'springen', energy: 25, name: 'Springreiten', icon: '🏇', desc: 'Tippe zum Springen über die Hindernisse.', color: '#4FB0FF' },
+  { id: 'aepfel', energy: 15, name: 'Äpfel fangen', icon: '🍎', desc: 'Fange Äpfel, weiche Bienen und Steinen aus.', color: '#FF6B6B' },
+  { id: 'memory', energy: 3, name: 'Hufeisen-Memory', icon: '🃏', desc: 'Finde alle Paare mit möglichst wenigen Zügen.', color: '#B07CFF' },
+  { id: 'karotten', energy: 8, name: 'Karotten-Tippen', icon: '🥕', desc: 'Tippe die Karotten, bevor sie verschwinden.', color: '#FF9F43' },
+  { id: 'rennen', energy: 25, name: 'Wettrennen', icon: '🏁', desc: 'Tippe abwechselnd links und rechts und gewinne das Rennen!', color: '#3CCB9A' },
+  { id: 'werfen', energy: 15, name: 'Hufeisenwerfen', icon: '🎯', desc: 'Triff mit dem Hufeisen den Pflock.', color: '#5C7CFA' },
+  { id: 'simon', energy: 3, name: 'Futter merken', icon: '🎵', desc: 'Merk dir, in welcher Reihenfolge das Futter leuchtet.', color: '#F06595' },
+  { id: 'quiz', energy: 3, name: 'Pferde-Quiz', icon: '❓', desc: 'Wie viel weißt du über Pferde?', color: '#FAB005' },
+  { id: 'ausritt', energy: 25, name: 'Ausritt im Gelände', icon: '🌳', desc: 'Lenke dein Pferd um Hindernisse und sammle Blumen.', color: '#51CF66' },
+  { id: 'dressur', energy: 15, name: 'Dressur-Takt', icon: '🎶', desc: 'Tippe genau im Takt, wenn der Huf auf der Markierung landet.', color: '#845EF7' },
+  { id: 'lasso', energy: 15, name: 'Lasso', icon: '🤠', desc: 'Wirf das Lasso im richtigen Moment über den Pfosten.', color: '#E8590C' },
+  { id: 'ring', energy: 15, name: 'Ringstechen', icon: '💍', desc: 'Stich mit der Lanze durch die baumelnden Ringe.', color: '#1C7ED6' },
+  { id: 'fliegen', energy: 8, name: 'Fliegen verscheuchen', icon: '🪰', desc: 'Verscheuche die Fliegen – aber lass die Schmetterlinge in Ruhe!', color: '#94D82D' },
+  { id: 'wasser', energy: 8, name: 'Wasserlauf', icon: '💧', desc: 'Drehe die Rohre, damit das Wasser zur Tränke fließt.', color: '#22B8CF' },
 ];
 
 // Wie schnell die Balken sinken (Punkte pro Stunde) und wie tief höchstens (sanft)
 const DECAY = { hunger: 2.5, fun: 3, clean: 2 };
 const FLOOR = 8;
 const DAILY_BONUS = 15;
+
+// Energie & Schlaf
+const SLEEP_FROM = 20, SLEEP_TO = 7;   // feste Schlafenszeit 20:00–7:00 Uhr
+const ENERGY_AWAKE = 100 / 6;          // pro Stunde wach: leer → voll in 6 Stunden
+const ENERGY_SLEEP = 100 / 3;          // pro Stunde im Schlaf (doppelt so schnell)
+const SWEETS_PER_DAY = 5;              // je Sorte (Zucker, Leckerli)
+const REST_AFTER_WAKE = 120000;        // nachts: nach 2 Minuten ohne Antippen wieder einschlafen
 
 // ===== Das Pferd als SVG zeichnen =====
 // horseSVG(horse, opts) liefert einen SVG-String.
@@ -661,11 +683,12 @@ function horseSVG(horse, opts = {}) {
   // --- Geometrie ---
   const legLen = 72 * B.leg;
   const rx = 80 * B.len, ry = 46 * B.body;
-  const cx = 158, cy = G - legLen - ry * 0.45;
+  const lie = opts.pose === 'lie';
+  const cx = 158, cy = lie ? G - ry * 0.93 : G - legLen - ry * 0.45;
   const lw = 16 * B.legW;
   const hs = B.head;
   const R = 36 * hs;
-  const hx = cx + rx * 0.92 + 8, hy = cy - ry - 38;
+  const hx = cx + rx * 0.92 + (lie ? 4 : 8), hy = lie ? cy - ry * 0.62 - 24 : cy - ry - 38;
   const mx = hx + 30 * hs, my = hy + 22 * hs, mrx = 25 * hs, mry = 20 * hs;
   const A = { x: cx + rx * 0.3, y: cy - ry * 0.86 };
   const backY = x => cy - ry * Math.sqrt(Math.max(0, 1 - Math.pow((x - cx) / rx, 2)));
@@ -724,12 +747,33 @@ function horseSVG(horse, opts = {}) {
     return s;
   }
 
+  // --- Liegend: untergeklappte Beine ---
+  function foldedLegs() {
+    const w = lw * 1.05, hoof = lum(body) > 0.7 ? '#9A8A7C' : '#3E322B';
+    const one = (pts, front) => {
+      const sock = hasSock(front, true);
+      const col = body, lc = sock ? white : lowerCol;
+      let t = `<polyline points="${pts.map(p => f(p[0]) + ',' + f(p[1])).join(' ')}" fill="none" stroke="${col}" stroke-width="${f(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const a = pts[pts.length - 2], b = pts[pts.length - 1];
+      if (lc) t += `<line x1="${f(a[0] + (b[0] - a[0]) * 0.45)}" y1="${f(a[1] + (b[1] - a[1]) * 0.45)}" x2="${f(b[0])}" y2="${f(b[1])}" stroke="${lc}" stroke-width="${f(w * 0.92)}" stroke-linecap="round"/>`;
+      const hc = lc === white || sock ? '#B8AA9C' : shade(body, -0.38);
+      t += `<ellipse cx="${f(b[0] + (b[0] > a[0] ? w * 0.38 : -w * 0.38))}" cy="${f(b[1] + 1)}" rx="${f(w * 0.3)}" ry="${f(w * 0.42)}" fill="${hc}"/>`;
+      return t;
+    };
+    let t = '';
+    // Hinterbein: nach vorn unter den Bauch geklappt
+    t += one([[cx - rx * 0.48, cy + ry * 0.15], [cx - rx * 0.7, G - w * 0.6], [cx - rx * 0.2, G - w * 0.48]], false);
+    // Vorderbein: unter die Brust geklappt, Huf zeigt nach hinten
+    t += one([[cx + rx * 0.6, cy + ry * 0.2], [cx + rx * 0.84, G - w * 0.62], [cx + rx * 0.3, G - w * 0.5]], true);
+    return t;
+  }
+
   // --- Schweif ---
   const T = { x: cx - rx * 0.93, y: cy - ry * (B.tailHigh ? 0.78 : 0.5) };
-  const L = 108 * B.tail * (B.leg * 0.4 + 0.6);
+  const L = 108 * B.tail * (B.leg * 0.4 + 0.6) * (lie ? 0.8 : 1);
   function tailSVG() {
     const cols = rainbow ? RAINBOW : [maneCol];
-    let s = `<g class="${anim ? 'tail' : ''}">`;
+    let s = `<g${lie ? ` transform="rotate(58 ${f(T.x)} ${f(T.y)})"` : ''}><g class="${anim ? 'tail' : ''}">`;
     const strands = rainbow ? 6 : 3;
     for (let i = 0; i < strands; i++) {
       const c = cols[i % cols.length];
@@ -740,7 +784,7 @@ function horseSVG(horse, opts = {}) {
     if (!rainbow) s += `<path d="M${f(T.x - 4)},${f(T.y + 6)} C${f(T.x - 22)},${f(T.y + L * 0.3)} ${f(T.x - 24)},${f(T.y + L * 0.6)} ${f(T.x - 20)},${f(T.y + L * 0.85)}" stroke="${shade(maneCol, 0.25)}" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".7"/>`;
     const tb = item('schweif');
     if (tb) s += bowAt(T.x - 6, T.y + 14, tb.color, 30);
-    s += '</g>';
+    s += '</g></g>';
     return s;
   }
 
@@ -807,7 +851,7 @@ function horseSVG(horse, opts = {}) {
   }
 
   // --- Ohren ---
-  const earRot = { happy: [-4, -16], ok: [-18, -30], sad: [-68, -78] }[mood] || [-10, -20];
+  const earRot = lie ? [-38, -50] : ({ happy: [-4, -16], ok: [-18, -30], sad: [-68, -78] }[mood] || [-10, -20]);
   function ear(x, y, rot, near) {
     const fill = near ? body : bodyShade;
     const inner = dark ? shade(body, 0.28) : mix(body, '#F2A8A0', 0.55);
@@ -1082,6 +1126,7 @@ function horseSVG(horse, opts = {}) {
     const x1 = mx + mrx * 0.05, y1 = my + mry * 0.6, x2 = mx + mrx * 0.72, y2 = my + mry * 0.42;
     const ctrl = mood === 'happy' ? 9 : mood === 'ok' ? 3 : -6;
     let s = `<path d="M${f(x1)},${f(y1)} Q${f((x1 + x2) / 2)},${f((y1 + y2) / 2 + ctrl * hs)} ${f(x2)},${f(y2)}" stroke="${shade(muzzle, -0.5)}" stroke-width="${f(2.4 * hs)}" fill="none" stroke-linecap="round"/>`;
+    if (opts.yawn) s += `<ellipse cx="${f((x1 + x2) / 2 + 2)}" cy="${f((y1 + y2) / 2 + 4 * hs)}" rx="${f(9 * hs)}" ry="${f(8 * hs)}" fill="#7A2E3A"/><ellipse cx="${f((x1 + x2) / 2 + 2)}" cy="${f((y1 + y2) / 2 + 8 * hs)}" rx="${f(5 * hs)}" ry="${f(3 * hs)}" fill="#FF8FA3"/>`;
     if (opts.chew) s += `<ellipse class="chew" cx="${f((x1 + x2) / 2)}" cy="${f((y1 + y2) / 2 + 3)}" rx="${f(6 * hs)}" ry="${f(3.5 * hs)}" fill="${shade(muzzle, -0.55)}"/>`;
     return s;
   }
@@ -1095,18 +1140,19 @@ function horseSVG(horse, opts = {}) {
   horseSVG.geo = { hx, hy, R, cx, cy, rx, ry, scale, mx, my, T, A, G, legLen };
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -60 340 360" class="horse-svg">`;
   s += `<defs>${bodyGrad}<clipPath id="${id}cbody"><ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}"/></clipPath><clipPath id="${id}cneck"><path d="${neckPath}"/>${headShapes}</clipPath><clipPath id="${id}ch">${headShapes}</clipPath></defs>`;
-  s += `<ellipse cx="170" cy="${G + 2}" rx="${f(110 * scale * B.len)}" ry="9" fill="#000" opacity=".16"/>`;
+  s += `<ellipse cx="170" cy="${G + 2}" rx="${f((lie ? 125 : 110) * scale * B.len)}" ry="${lie ? 11 : 9}" fill="#000" opacity=".16"/>`;
   s += `<g transform="translate(170 ${G}) scale(${scale}) translate(-170 ${-G})">`;
   s += `<g class="${anim ? 'breathe' : ''}">`;
   // hinten: ferne Beine, Schweif
-  s += leg(cx - rx * 0.4, false, false, P[1]) + leg(cx + rx * 0.72, true, false, P[3]);
+  if (!lie) s += leg(cx - rx * 0.4, false, false, P[1]) + leg(cx + rx * 0.72, true, false, P[3]);
   s += tailSVG();
-  s += leg(cx - rx * 0.6, false, true, P[0]) + leg(cx + rx * 0.5, true, true, P[2]);
+  if (!lie) s += leg(cx - rx * 0.6, false, true, P[0]) + leg(cx + rx * 0.5, true, true, P[2]);
   // Körper
   s += `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#${id}bg)"/>`;
   // Fellmuster + Schmutz auf dem Körper
   const pat = pattern();
   s += `<g clip-path="url(#${id}cbody)">${pat}${dirt()}</g>`;
+  if (lie) s += foldedLegs();
   s += backItem();
   // Kopf + Hals in einer Gruppe (zum Fressen neigen)
   s += `<g class="${anim ? 'headgrp' : ''}">`;
@@ -1134,6 +1180,10 @@ function horseSVG(horse, opts = {}) {
   if (clean >= 92) s += `<path d="${starPath(cx + rx * 0.2, cy - ry * 0.55, 6, 1.8)}" fill="#FFFFFF" opacity=".9"/>`;
   s += `</g></g>`;
   s += aura();
+  if (opts.zzz) {
+    const zx = 170 + (hx + R * 0.6 - 170) * scale, zy = G + (hy - R * 1.1 - G) * scale;
+    [0, 1, 2].forEach(i => { s += `<text class="${anim ? 'zzz' : ''}" style="animation-delay:${i * 0.9}s" x="${f(zx + i * 12)}" y="${f(zy - i * 16)}" font-size="${16 + i * 5}" font-weight="900" fill="#FFFFFF" stroke="#5B6CC9" stroke-width="1.2" font-family="system-ui,sans-serif">z</text>`; });
+  }
   s += '</svg>';
   return s;
 }
@@ -1337,9 +1387,10 @@ const NAMES = ['Blitz', 'Luna', 'Sternchen', 'Karamell', 'Wolke', 'Sunny', 'Merl
 function defaultState() {
   return {
     v: 1, owner: 'Alea', horse: null,
-    stats: { hunger: 80, fun: 80, clean: 85 },
+    stats: { hunger: 80, fun: 80, clean: 85, energy: 100 },
     coins: 30, owned: [], scene: 'weide', last: Date.now(), best: {}, lastBonus: '',
     sound: true, sparkleUntil: 0, tutorial: false, gamesPlayed: 0, dayNight: true, toolSel: {},
+    sleepTime: true, napping: false, napReturn: null, awakeUntil: 0, sweets: { day: '', zucker: 0, leckerli: 0 },
   };
 }
 let S;
@@ -1352,6 +1403,8 @@ function migrate(st) {
   if (!Array.isArray(st.owned)) st.owned = [];
   if (!st.stats) st.stats = {};
   for (const k of ['hunger', 'fun', 'clean']) if (typeof st.stats[k] !== 'number' || isNaN(st.stats[k])) st.stats[k] = 70;
+  if (typeof st.stats.energy !== 'number' || isNaN(st.stats.energy)) st.stats.energy = 100; // ab 1.4: neue Pferde-Energie
+  if (!st.sweets || typeof st.sweets !== 'object') st.sweets = { day: '', zucker: 0, leckerli: 0 };
   if (st.horse) {
     st.horse.equip = st.horse.equip || {};
     // Zubehör, das es nicht mehr gibt, ablegen (bleibt aber als gekauft gespeichert)
@@ -1468,15 +1521,88 @@ async function syncFromCloud(maxMs) {
   return true;
 }
 // Balken sinken mit der Zeit (sanft: nie unter FLOOR)
+// Im Schlaf sinken die anderen Balken nur halb so schnell, Energie steigt doppelt so schnell.
 function applyDecay() {
   const now = Date.now();
-  const hrs = Math.max(0, (now - (S.last || now)) / 3600000);
+  let t = S.last || now;
   S.last = now;
-  if (!S.horse || hrs <= 0) return;
-  for (const k of ['hunger', 'fun', 'clean']) {
-    const v = S.stats[k];
-    if (v > FLOOR) S.stats[k] = Math.max(FLOOR, v - DECAY[k] * hrs);
+  if (!S.horse || now <= t) return;
+  t = Math.max(t, now - 7 * 864e5);
+  while (t < now) {
+    const step = Math.min(600000, now - t), hrs = step / 3600000, mid = new Date(t + step / 2);
+    const bed = isBedtime(mid);
+    const asleep = bed ? mid.getTime() >= (S.awakeUntil || 0) : !!S.napping;
+    for (const k of ['hunger', 'fun', 'clean']) {
+      const v = S.stats[k];
+      if (v > FLOOR) S.stats[k] = Math.max(FLOOR, v - DECAY[k] * hrs * (asleep ? 0.5 : 1));
+    }
+    S.stats.energy = Math.min(100, (S.stats.energy || 0) + (asleep ? ENERGY_SLEEP : ENERGY_AWAKE) * hrs);
+    if (bed && S.napping) { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } }
+    t += step;
   }
+}
+
+// ---------- Schlafen ----------
+// Schlafenszeit 20–7 Uhr: das Pferd ist im Stall und schläft. Geweckt bleibt es 2 Minuten wach (jede Berührung verlängert).
+// Tagsüber: Nickerchen im Stall mit dem 😴-Knopf.
+let visitStall = false;
+function isBedtime(d) { if (S && S.sleepTime === false) return false; const h = (d || new Date()).getHours(); return h >= SLEEP_FROM || h < SLEEP_TO; }
+function sleepState() {
+  if (!S || !S.horse) return 'awake';
+  if (isBedtime()) return Date.now() < (S.awakeUntil || 0) ? 'nightAwake' : 'night';
+  return S.napping ? 'nap' : 'awake';
+}
+const isAsleep = () => ['night', 'nap'].includes(sleepState());
+function touchAwake() { if (isBedtime() && !isAsleep()) S.awakeUntil = Date.now() + REST_AFTER_WAKE; }
+// Welche Szene ist in der Mitte zu sehen?
+function displayScene() { return isBedtime() && visitStall ? 'stall' : S.scene; }
+// Ist das Pferd in der Mitte zu sehen? (nachts nur im Stall)
+const horseHere = () => !isBedtime() || displayScene() === 'stall';
+// Pferd wecken (mit Animation in der angegebenen Ansicht), danach then() ausführen
+function wakeHorse(v, then) {
+  if (!isAsleep()) { then && then(); return; }
+  const wasNap = sleepState() === 'nap';
+  if (isBedtime()) S.awakeUntil = Date.now() + REST_AFTER_WAKE;
+  else S.napping = false;
+  save();
+  v.wakeUp(() => {
+    if (wasNap && S.napReturn) { S.scene = S.napReturn; S.napReturn = null; save(); renderScene(); setTimeout(layout, 30); }
+    then && then();
+  });
+  Object.values(views).forEach(o => { if (o !== v) o.render(); });
+  updateSleepUI();
+}
+function goToSleep() {
+  Snd.play('click');
+  if (isBedtime()) { S.awakeUntil = 0; save(); refreshHorses(); updateSleepUI(); say('Gute Nacht… 😴', 1800); return; }
+  if (S.scene !== 'stall') { S.napReturn = S.scene; S.scene = 'stall'; renderScene(); setTimeout(layout, 30); }
+  S.napping = true; save(); refreshHorses(); updateSleepUI();
+  toast('Psst… 😴 Im Stall schläft dein Pferd und tankt doppelt so schnell Energie. Antippen weckt es.', 3500);
+}
+function updateSleepUI() {
+  if (!S.horse || !$('#centerBox')) return;
+  const here = horseHere(), st = sleepState();
+  $('#centerBox').style.visibility = here ? 'visible' : 'hidden';
+  $('#awayHint').classList.toggle('hidden', here);
+  $('#awayName').textContent = S.horse.name;
+  $('#tools').style.visibility = here ? 'visible' : 'hidden';
+  const b = $('#btnSleep');
+  b.classList.toggle('hidden', !here || st === 'night' || st === 'nap');
+  b.innerHTML = st === 'nightAwake' ? '🛏️<span>Ins Bett</span>' : '😴<span>Schlafen</span>';
+}
+let lastSleepKey = '';
+function sleepTick() {
+  if (!S.horse || $('#main').classList.contains('hidden')) return;
+  if (!isBedtime()) visitStall = false;
+  if (isBedtime() && S.napping) { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } save(); }
+  if (S.napping && S.stats.energy >= 100 && views.center) { wakeHorse(views.center, () => say('Ausgeschlafen! ☀️')); return; }
+  const k = [isBedtime(), sleepState(), displayScene()].join('|');
+  if (k === lastSleepKey) return;
+  const old = lastSleepKey.split('|');
+  lastSleepKey = k;
+  if (old[0] !== String(isBedtime()) || old[2] !== displayScene()) renderScene();
+  updateSleepUI(); refreshHorses(); setTimeout(layout, 30);
+  if (old[1] === 'nightAwake' && sleepState() === 'night') { say('Gähn… Gute Nacht 😴', 1800); }
 }
 function moodOf() {
   const { hunger, fun, clean } = S.stats;
@@ -1508,9 +1634,8 @@ function realPhase() {
   return 'day';
 }
 function phase() { return S.dayNight ? realPhase() : 'day'; }
-const isSleepy = () => phase() === 'night';
 function applyPhase() {
-  const sc = byId(SCENES, S.scene);
+  const sc = byId(SCENES, displayScene());
   document.body.dataset.phase = sc.alwaysNight ? 'day' : phase();
   document.body.classList.toggle('indoor', !!sc.indoor);
   refreshHorses();
@@ -1672,12 +1797,16 @@ class HorseView {
     if (!S.horse) return;
     const sparkle = S.sparkleUntil > Date.now();
     const cleanStep = Math.round(S.stats.clean / 10);
-    const sleepy = isSleepy();
-    const key = JSON.stringify([S.horse, moodOf(), cleanStep, sparkle, this.eyes, this.chew, sleepy]);
+    const asleep = isAsleep();
+    const sleepy = !asleep && (S.stats.energy < 25 || sleepState() === 'nightAwake');
+    const key = JSON.stringify([S.horse, moodOf(), cleanStep, sparkle, this.eyes, this.chew, sleepy, asleep, this.override]);
     if (!force && key === this.key) return;
     this.key = key;
     const keep = this.svg ? Array.from(this.svg.classList).filter(c => ['eating', 'nope'].includes(c)) : [];
-    this.box.querySelector('.hwrap').innerHTML = horseSVG(S.horse, { mood: moodOf(), clean: S.stats.clean, sparkle, eyes: this.eyes, chew: this.chew, sleepy });
+    let o = { mood: moodOf(), clean: S.stats.clean, sparkle, eyes: this.eyes, chew: this.chew, sleepy };
+    if (asleep) o = Object.assign(o, { pose: 'lie', eyes: 'closed', zzz: true, sleepy: false });
+    if (this.override) o = Object.assign(o, this.override);
+    this.box.querySelector('.hwrap').innerHTML = horseSVG(S.horse, o);
     this.svg = this.box.querySelector('svg');
     keep.forEach(c => this.svg.classList.add(c));
   }
@@ -1687,6 +1816,32 @@ class HorseView {
     el.classList.remove(cls); void el.getBoundingClientRect(); el.classList.add(cls);
     clearTimeout(this['t' + cls]);
     this['t' + cls] = setTimeout(() => el.classList.remove(cls), ms);
+  }
+  // Aufwachen: Augen auf, gähnen, aufstehen, schütteln, wiehern
+  wakeUp(done) {
+    if (this.waking) return;
+    this.waking = true;
+    const steps = [
+      [{ pose: 'lie', eyes: 'open', sleepy: true, zzz: false }, 650, () => Snd.play('pop')],
+      [{ pose: 'lie', eyes: 'closed', yawn: true, zzz: false }, 900, () => Snd.tone(420, 0.7, 'sine', 0.08, -200)],
+      [{ pose: 'lie', eyes: 'open', zzz: false }, 350, null],
+      [{ pose: 'stand', eyes: 'closed' }, 300, () => this.anim('hop', 700)],
+      [{ pose: 'stand' }, 0, () => { this.anim('shiver', 1000); Snd.play('neigh'); }],
+    ];
+    let i = 0;
+    const next = () => {
+      if (i >= steps.length) {
+        this.override = null; this.waking = false; this.render(true);
+        const r = this.box.getBoundingClientRect();
+        for (let k = 0; k < 3; k++) setTimeout(() => fx('heart', r.left + r.width * (0.55 + Math.random() * 0.3), r.top + r.height * 0.3, ['💖', '💕', '☀️'][k], { '--dx': (Math.random() * 50 - 25) + 'px' }), k * 140);
+        done && done();
+        return;
+      }
+      const [ov, ms, fn] = steps[i++];
+      this.override = ov; this.render(true); fn && fn();
+      setTimeout(next, ms);
+    };
+    next();
   }
   closeEyes(ms) {
     this.eyes = 'closed'; this.render();
@@ -1727,7 +1882,7 @@ function placeHorse(box, area, opts = {}) {
 let panel = 1, tool = 'hand';
 
 function renderScene() {
-  $('#sceneBg').innerHTML = sceneSVG(S.scene) + `<div id="tint"></div><div id="nightsky">${nightSkySVG()}</div><div id="lamp"></div>`;
+  $('#sceneBg').innerHTML = sceneSVG(displayScene()) + `<div id="tint"></div><div id="nightsky">${nightSkySVG()}</div><div id="lamp"></div>`;
   applyPhase();
 }
 function renderTop() {
@@ -1738,7 +1893,7 @@ function renderTop() {
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function barColor(v) { return v < 25 ? '#FF5A6E' : v < 50 ? '#FFB03B' : v < 75 ? '#9ED84C' : '#3CCB7A'; }
 function renderBars() {
-  [['hunger', 'bHunger'], ['fun', 'bFun'], ['clean', 'bClean']].forEach(([k, id]) => {
+  [['hunger', 'bHunger'], ['fun', 'bFun'], ['clean', 'bClean'], ['energy', 'bEnergy']].forEach(([k, id]) => {
     const v = Math.round(S.stats[k]), el = $('#' + id);
     el.querySelector('.fill').style.width = v + '%';
     el.querySelector('.fill').style.backgroundColor = barColor(v);
@@ -1822,13 +1977,14 @@ function sayFood(text) {
   clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), 2200);
 }
 function chatter() {
-  if (!S.horse || panel !== 1 || !$('#sheet').classList.contains('open') === false) return;
-  const { hunger, fun, clean } = S.stats;
+  if (!S.horse || panel !== 1 || !$('#sheet').classList.contains('open') === false || isAsleep() || !horseHere()) return;
+  const { hunger, fun, clean, energy } = S.stats;
   const lines = [];
+  if (sleepState() === 'nightAwake') lines.push('Gähn… 😴', 'Ich bin sooo müde…', `Gute Nacht, ${S.owner}! 🌙`, 'Bringst du mich ins Bett? 🛏️');
+  else if (energy < 25) lines.push('Ich bin so müde… 😴', 'Ein Nickerchen wäre toll…', 'Mir fallen gleich die Augen zu…');
   if (hunger < 35) lines.push('Ich hab Hunger! 🥕', 'Mein Bauch knurrt…', 'Gibt es bald Futter?');
   if (fun < 35) lines.push('Mir ist langweilig…', 'Spielst du mit mir? 🎮', 'Komm, lass uns was machen!');
   if (clean < 35) lines.push('Ich bin ganz schmutzig! 🧽', 'Bürstest du mich?', 'Iiih, Matsch!');
-  if (!lines.length && isSleepy()) lines.push('Gähn… 😴', 'Ich bin sooo müde…', `Gute Nacht, ${S.owner}! 🌙`, 'Schau mal, die Sterne! ✨');
   if (!lines.length) lines.push(`Ich hab dich lieb, ${S.owner}! 💕`, 'Was für ein schöner Tag!', 'Hihi! 😄', 'Kraulst du mich?', 'Ich fühl mich super!', 'Wieherrr! 🐴');
   say(lines[Math.floor(Math.random() * lines.length)]);
 }
@@ -1855,6 +2011,8 @@ function useTool(id, btn) {
     return;
   }
   const r = btn.getBoundingClientRect();
+  if (isAsleep()) { wakeHorse(views.center, () => say('Oh, hallo! 😊')); return; }
+  touchAwake();
   if (id === 'shampoo') {
     if (S.stats.clean >= 97) { say('Ich bin doch schon blitzsauber! ✨'); return; }
     if (!spend(t.price)) return;
@@ -1881,6 +2039,8 @@ function setupCare() {
   const box = $('#centerBox');
   let down = false, lx = 0, ly = 0, acc = 0, moved = 0, sx = 0, sy = 0;
   box.addEventListener('pointerdown', e => {
+    if (isAsleep() || views.center.waking) { e.preventDefault(); if (!views.center.waking) wakeHorse(views.center, () => say(isBedtime() ? 'Oh… hallo! Ist schon Morgen? 🥱' : 'Oh, hallo! 😊', 2200)); down = false; return; }
+    touchAwake();
     down = true; lx = sx = e.clientX; ly = sy = e.clientY; acc = 0; moved = 0;
     if (tool !== 'hand') { try { box.setPointerCapture(e.pointerId); } catch (err) { } e.preventDefault(); }
   });
@@ -1942,16 +2102,30 @@ function pet(x, y) {
 
 // ---------- Futter (rechts) ----------
 function renderFood() {
-  $('#foodGrid').innerHTML = FOODS.map(f => `<button class="food ${f.price > S.coins ? 'poor' : ''}" data-food="${f.id}"><div class="fi">${f.icon}</div><div class="fn">${f.name}</div><div class="fs">🍎+${f.hunger}${f.fun ? ' 😄+' + f.fun : ''}</div><div class="fp ${f.price ? '' : 'free'}">${f.price ? f.price + ' 🪙' : 'Gratis'}</div></button>`).join('');
+  sweetsReset();
+  $('#foodGrid').innerHTML = FOODS.map(f => {
+    const left = f.sweet ? SWEETS_PER_DAY - (S.sweets[f.id] || 0) : null;
+    return `<button class="food ${f.price > S.coins || left === 0 ? 'poor' : ''}" data-food="${f.id}"><div class="fi">${f.icon}</div><div class="fn">${f.name}</div><div class="fs">🍎+${f.hunger}${f.fun ? ' 😄+' + f.fun : ''}${f.energy ? ' ⚡+' + f.energy : ''}</div>${f.sweet ? `<div class="fs">noch ${left}× heute</div>` : ''}<div class="fp ${f.price ? '' : 'free'}">${f.price ? f.price + ' 🪙' : 'Gratis'}</div></button>`;
+  }).join('');
+}
+function sweetsReset() {
+  if (!S.sweets || S.sweets.day !== today()) S.sweets = { day: today(), zucker: 0, leckerli: 0 };
 }
 let feeding = false;
 function feed(id, btn) {
   const f = FOODS.find(x => x.id === id), v = views.food;
   if (feeding) return;
-  if (S.stats.hunger >= 97 && f.hunger >= 8) {
+  if (isAsleep()) { feeding = true; wakeHorse(v, () => { feeding = false; feed(id, btn); }); return; }
+  touchAwake();
+  sweetsReset();
+  if (f.sweet && (S.sweets[f.id] || 0) >= SWEETS_PER_DAY) {
+    Snd.play('nope'); v.anim('nope', 900); sayFood('Mir ist schon ganz zuckrig 🤢 Morgen wieder!'); return;
+  }
+  if (S.stats.hunger >= 97 && f.hunger >= 8 && !f.sweet) {
     Snd.play('nope'); v.anim('nope', 900); sayFood('Ich bin pappsatt! 😮‍💨'); return;
   }
   if (f.price && !spend(f.price)) return;
+  if (f.sweet) { S.sweets[f.id] = (S.sweets[f.id] || 0) + 1; save(); }
   feeding = true;
   const r = btn.querySelector('.fi').getBoundingClientRect();
   const m = v.mouth() || { x: innerWidth / 2, y: innerHeight * 0.7 };
@@ -1964,8 +2138,8 @@ function feed(id, btn) {
     v.chew = true; v.render();
     v.anim('eating', 2100);
     Snd.play('eat'); setTimeout(() => Snd.play('eat'), 700);
-    plusText(m.x, m.y - 50, `🍎+${f.hunger}${f.fun ? '  😄+' + f.fun : ''}`);
-    change({ hunger: f.hunger, fun: f.fun });
+    plusText(m.x, m.y - 50, `🍎+${f.hunger}${f.fun ? '  😄+' + f.fun : ''}${f.energy ? '  ⚡+' + f.energy : ''}`);
+    change({ hunger: f.hunger, fun: f.fun, energy: f.energy || 0 });
     sayFood(f.text);
   }, 520);
   setTimeout(() => {
@@ -1985,9 +2159,10 @@ function renderGames() {
     else if (g.id === 'rennen') { const b = S.best.rennenSiege; best = b ? `🏆 ${b} ${b === 1 ? 'Sieg' : 'Siege'}` : ''; }
     else if (g.id === 'quiz') { const b = S.best.quiz; best = b ? `🏆 Rekord: ${b} von 10 richtig` : ''; }
     else if (S.best[g.id]) best = `🏆 Rekord: ${S.best[g.id]} Punkte`;
-    return `<button class="gamecard" data-game="${g.id}"><span class="gi" style="background:${g.color}">${g.icon}</span><span class="gt"><b>${g.name}</b><span class="gd">${g.desc}</span>${best ? `<div class="gb">${best}</div>` : ''}</span><span class="play">Spielen</span></button>`;
+    const tired = S.stats.energy < g.energy;
+    return `<button class="gamecard ${tired ? 'tired' : ''}" data-game="${g.id}"><span class="gi" style="background:${g.color}">${g.icon}</span><span class="gt"><b>${g.name}</b><span class="gd">${g.desc}</span><div class="gb"><span style="color:${tired ? '#E8590C' : '#2B8A3E'}">⚡ ${g.energy}</span>${best ? ' · ' + best : ''}</div></span><span class="play">${tired ? '😴' : 'Spielen'}</span></button>`;
   }).join('');
-  h += `<p style="text-align:center;color:var(--ink2);font-weight:700;font-size:13px;margin:6px 0 0">Spielen macht deinem Pferd Spaß – aber auch Hunger 😉</p>`;
+  h += `<p style="text-align:center;color:var(--ink2);font-weight:700;font-size:13px;margin:6px 0 0">Spielen macht deinem Pferd Spaß – aber auch Hunger und müde 😉<br>⚡ Energie kommt mit der Zeit, durch Schlafen im Stall, Zucker und Leckerli zurück.</p>`;
   $('#gameList').innerHTML = h;
 }
 function claimBonus(btn) {
@@ -2112,7 +2287,7 @@ async function shopClick(e) {
   } else if (b.dataset.scene) {
     const sc = SCENES.find(x => x.id === b.dataset.scene);
     if (sc.price && !owns('scene:' + sc.id)) { if (!(await buy(sc.name, sc.price))) return; S.owned.push('scene:' + sc.id); }
-    S.scene = sc.id; renderScene(); Snd.play('sparkle'); setTimeout(layout, 50);
+    S.scene = sc.id; if (S.napping) { S.napping = false; S.napReturn = null; } visitStall = false; renderScene(); updateSleepUI(); refreshHorses(); Snd.play('sparkle'); setTimeout(layout, 50);
   } else return;
   save(); refreshHorses(); renderShop(); renderTop();
 }
@@ -2221,7 +2396,7 @@ function creatorNav(dir) {
     if (!C_draft.name) return;
     const first = !S.horse;
     S.horse = C_draft;
-    if (first) { S.stats = { hunger: 80, fun: 80, clean: 85 }; S.last = Date.now(); }
+    if (first) { S.stats = { hunger: 80, fun: 80, clean: 85, energy: 100 }; S.last = Date.now(); }
     saveNow();
     closeCreator();
     startMain(first);
@@ -2239,6 +2414,7 @@ async function openSettings() {
   m.innerHTML = `<div class="gbox" style="text-align:left"><h2 style="text-align:center">⚙️ Einstellungen</h2>
     <div class="setrow">Ton <button class="toggle ${S.sound ? 'on' : ''}" id="sSound"></button></div>
     <div class="setrow">Tag & Nacht nach Uhrzeit <button class="toggle ${S.dayNight ? 'on' : ''}" id="sDay"></button></div>
+    <div class="setrow">Schlafenszeit 20–7 Uhr <button class="toggle ${S.sleepTime !== false ? 'on' : ''}" id="sSleep"></button></div>
     <div class="setrow">Dein Name <input id="sOwner" maxlength="14" value="${esc(S.owner)}"></div>
     <div class="setrow">Pferdename <input id="sHorse" maxlength="16" value="${esc(S.horse.name)}"></div>
     <div class="setrow" style="display:block"><div>💾 Spielstand</div><div style="font-size:13px;font-weight:600;color:var(--ink2);margin:4px 0 8px">Läuft als: <b>${RUN_NAMES[runMode()]}</b>${Cloud.available() ? ` · Cloud: <b>${Cloud.ok ? 'aktiv ☁️' : 'nicht verfügbar'}</b>` : ''}${runMode() === 'ios' || runMode() === 'android' ? ' · <b>sicher in der App gespeichert ✓</b>' : ''}<br>${runMode() === 'browser' ? '⚠️ Im Browser-Tab kann der Spielstand verloren gehen. Lege das Spiel auf den Home-Bildschirm und spiele nicht im privaten Modus. ' : ''} Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</div><div style="display:flex;gap:8px"><button class="btn" id="sExport" style="font-size:14px;padding:10px">📋 Code sichern</button><button class="btn" id="sImport" style="font-size:14px;padding:10px">📥 Code laden</button></div><button class="btn" id="sBackups" style="font-size:14px;padding:10px;margin-top:8px;width:100%">🕓 Sicherungen der letzten Tage</button></div>
@@ -2248,6 +2424,7 @@ async function openSettings() {
   m.classList.remove('hidden');
   m.onclick = async e => {
     if (e.target.id === 'sSound') { S.sound = !S.sound; e.target.classList.toggle('on', S.sound); Snd.unlock(); Snd.play('pop'); save(); }
+    if (e.target.id === 'sSleep') { S.sleepTime = S.sleepTime === false; e.target.classList.toggle('on', S.sleepTime); Snd.play('pop'); save(); lastSleepKey = ''; sleepTick(); }
     if (e.target.id === 'sDay') { S.dayNight = !S.dayNight; e.target.classList.toggle('on', S.dayNight); applyPhase(); Snd.play('pop'); save(); }
     if (e.target.id === 'sOk') {
       const o = $('#sOwner').value.trim(), hn = $('#sHorse').value.trim();
@@ -2375,6 +2552,7 @@ function startMain(first) {
   renderScene(); renderTop(); renderBars(); renderTools(); renderFood(); renderGames();
   views.center = new HorseView($('#centerBox'));
   views.food = new HorseView($('#foodBox'));
+  lastSleepKey = ''; sleepTick();
   refreshHorses(true);
   goPanel(1, true);
   requestAnimationFrame(layout);
@@ -2392,6 +2570,7 @@ function startMain(first) {
     setInterval(() => { applyDecay(); renderBars(); refreshHorses(); save(); }, 20000);
     setInterval(() => { if (Math.random() < 0.6) chatter(); }, 14000);
     setInterval(applyPhase, 60000);
+    setInterval(sleepTick, 5000);
     document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(true); else { applyDecay(); renderBars(); refreshHorses(); renderGames(); } });
     window.addEventListener('pagehide', () => saveNow(true));
     window.addEventListener('beforeunload', () => saveNow(true));
@@ -2419,6 +2598,8 @@ function init() {
   });
   $('#btnShop').addEventListener('click', () => openShop('zubehoer'));
   $('#btnScene').addEventListener('click', () => openShop('szenen'));
+  $('#btnSleep').addEventListener('click', goToSleep);
+  $('#awayGo').addEventListener('click', () => { Snd.play('click'); visitStall = true; renderScene(); updateSleepUI(); refreshHorses(); setTimeout(layout, 30); });
   $('#btnSettings').addEventListener('click', openSettings);
   $('#shopSeg').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { shopTab = b.dataset.tab; Snd.play('click'); renderShop(); $('#shopBody').scrollTop = 0; } });
   $('#shopBody').addEventListener('click', shopClick);
@@ -2565,18 +2746,28 @@ const Games = (() => {
     hud('', '');
     startScreen(g);
   }
+  const FNS = {};   // weitere Spiele melden sich hier an (games2.js)
+  const HINTS = {};
   function startScreen(g) {
     const a = area();
     let extra = '';
+    const tired = S.stats.energy < g.energy;
+    const eLine = `<p style="font-size:14px;color:${tired ? '#E8590C' : '#2B8A3E'}">⚡ Braucht ${g.energy} Energie · dein Pferd hat ${Math.floor(S.stats.energy)}</p>`;
     if (g.id === 'memory') extra = `<div class="row" style="flex-direction:column"><button class="btn" data-diff="6">Leicht · 12 Karten</button><button class="btn pri" data-diff="8">Mittel · 16 Karten</button><button class="btn" data-diff="10">Schwer · 20 Karten</button></div>`;
     else extra = `<div class="row"><button class="btn pri" data-go="1">Los geht's!</button></div>`;
-    const hint = { rennen: 'Tippe ganz schnell abwechselnd auf den linken und rechten Huf. Zweimal dieselbe Seite bremst!', werfen: 'Tippe, wenn die Kraft-Anzeige richtig steht. Trifft das Hufeisen den Pflock, gibt es 3 Punkte. 10 Würfe.', simon: 'Schau genau hin, welches Futter nacheinander leuchtet. Tippe es danach in derselben Reihenfolge an. Jede Runde kommt eins dazu.', quiz: '10 Fragen rund ums Pferd. Für jede richtige Antwort gibt es 2 Münzen.', springen: 'Tippe irgendwo auf den Bildschirm, damit dein Pferd springt. Sammle die Münzen in der Luft! Du hast 3 Herzen.', aepfel: 'Bewege dein Pferd mit dem Finger nach links und rechts. Fange 🍎 🥕 und ⭐ – aber keine 🐝 und 💩!', memory: 'Decke immer zwei Karten auf und finde alle Paare. Je weniger Züge, desto mehr Münzen!', karotten: 'Tippe schnell auf jede 🥕 und ⭐. Aber Vorsicht vor den 🐝 – die geben Minuspunkte!' }[g.id];
-    a.insertAdjacentHTML('beforeend', `<div class="gover"><div class="gbox"><div class="emoji">${g.icon}</div><h2>${g.name}</h2><p>${hint}</p>${extra}</div></div>`);
+    if (tired) extra = `<p style="font-weight:800">😴 Dein Pferd ist zu müde für dieses Spiel.</p><p style="font-size:13px">Lass es im Stall schlafen (😴-Knopf), warte ein bisschen oder gib ihm Zucker oder ein Leckerli.</p><div class="row"><button class="btn pri" data-tired="1">Okay</button></div>`;
+    const hint = HINTS[g.id] || { rennen: 'Tippe ganz schnell abwechselnd auf den linken und rechten Huf. Zweimal dieselbe Seite bremst!', werfen: 'Tippe, wenn die Kraft-Anzeige richtig steht. Trifft das Hufeisen den Pflock, gibt es 3 Punkte. 10 Würfe.', simon: 'Schau genau hin, welches Futter nacheinander leuchtet. Tippe es danach in derselben Reihenfolge an. Jede Runde kommt eins dazu.', quiz: '10 Fragen rund ums Pferd. Für jede richtige Antwort gibt es 2 Münzen.', springen: 'Tippe irgendwo auf den Bildschirm, damit dein Pferd springt. Sammle die Münzen in der Luft! Du hast 3 Herzen.', aepfel: 'Bewege dein Pferd mit dem Finger nach links und rechts. Fange 🍎 🥕 und ⭐ – aber keine 🐝 und 💩!', memory: 'Decke immer zwei Karten auf und finde alle Paare. Je weniger Züge, desto mehr Münzen!', karotten: 'Tippe schnell auf jede 🥕 und ⭐. Aber Vorsicht vor den 🐝 – die geben Minuspunkte!' }[g.id];
+    a.insertAdjacentHTML('beforeend', `<div class="gover"><div class="gbox"><div class="emoji">${g.icon}</div><h2>${g.name}</h2><p>${hint}</p>${eLine}${extra}</div></div>`);
     a.querySelector('.gover').onclick = e => {
       const b = e.target.closest('button'); if (!b) return;
       Snd.play('click');
+      if (b.dataset.tired) { close(true); return; }
+      if (S.stats.energy < g.energy) return;
+      // Energie abziehen, Pferd ist jetzt wach
+      if (isAsleep()) { if (isBedtime()) S.awakeUntil = Date.now() + REST_AFTER_WAKE; else { S.napping = false; if (S.napReturn) { S.scene = S.napReturn; S.napReturn = null; } } }
+      S.stats.energy = Math.max(0, S.stats.energy - g.energy); touchAwake(); save();
       a.innerHTML = '';
-      const games = { springen: Jump, aepfel: Catch, memory: Memory, karotten: Whack, rennen: Race, werfen: Throw, simon: Simon, quiz: Quiz };
+      const games = Object.assign({ springen: Jump, aepfel: Catch, memory: Memory, karotten: Whack, rennen: Race, werfen: Throw, simon: Simon, quiz: Quiz }, FNS);
       cur = games[g.id](b.dataset.diff ? +b.dataset.diff : 0);
       cur.id = g.id; cur.running = true;
     };
@@ -2590,7 +2781,7 @@ const Games = (() => {
     else if (score > (S.best[id] || 0)) { S.best[id] = score; rec = score > 0; }
     S.gamesPlayed++;
     // Spielen macht Spaß, aber hungrig (und draußen schmutzig)
-    const dirty = ['springen', 'aepfel', 'rennen', 'werfen'].includes(id);
+    const dirty = ['springen', 'aepfel', 'rennen', 'werfen', 'ausritt', 'lasso', 'ring'].includes(id);
     S.stats.fun = clamp(S.stats.fun + 14, 0, 100);
     S.stats.hunger = clamp(S.stats.hunger - 5, 0, 100);
     if (dirty) S.stats.clean = clamp(S.stats.clean - 7, 0, 100);
@@ -2629,6 +2820,7 @@ const Games = (() => {
     let last = performance.now();
     const step = now => {
       if (!cur || !cur.running) return;
+      if (isBedtime()) S.awakeUntil = Math.max(S.awakeUntil || 0, Date.now() + REST_AFTER_WAKE);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (!cur.paused) fn(dt);
       raf = requestAnimationFrame(step);
@@ -3141,7 +3333,446 @@ const Games = (() => {
     return { stop() { a.onclick = null; } };
   }
 
-  return { open, close, requestClose };
+  // Werkzeugkasten für weitere Spiele
+  const kit = { area, hud, makeCanvas, horseImg, drawHorse, emoji, sky, cloud, loop, finish, cur: () => cur };
+  return { open, close, requestClose, FNS, HINTS, kit };
+})();
+
+// ===== Minispiele (Update 1.4): Ausritt, Dressur-Takt, Fliegen, Lasso, Ringstechen, Wasserlauf =====
+(() => {
+  const K = Games.kit;
+  const C = () => K.cur();
+  const big = (ctx, txt, x, y, size, col = '#fff') => {
+    ctx.font = `900 ${Math.round(size)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(3, size / 8); ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y);
+  };
+  const popTexts = [];
+  const pop = (x, y, txt, col) => popTexts.push({ x, y, txt, col, t: 0 });
+  const drawPops = (ctx, dt) => {
+    for (const p of popTexts) { p.t += dt; p.y -= 45 * dt; ctx.globalAlpha = Math.max(0, 1 - p.t); big(ctx, p.txt, p.x, p.y, 22, p.col || '#fff'); ctx.globalAlpha = 1; }
+    while (popTexts.length && popTexts[0].t > 1) popTexts.shift();
+  };
+  const ground = (ctx, W, H, gy, col = '#62B552') => { ctx.fillStyle = col; ctx.fillRect(0, gy, W, H - gy); };
+
+  Object.assign(Games.HINTS, {
+    ausritt: 'Dein Pferd läuft von allein. Tippe oben, um nach hinten zu wechseln, unten, um nach vorn zu wechseln. Weiche Büschen und Steinen aus und sammle Blumen 🌼 und Äpfel 🍎!',
+    dressur: 'Die Hufeisen laufen auf den Kreis zu. Tippe irgendwo, genau wenn ein Hufeisen im Kreis ist. Im Takt gibt es Extra-Punkte!',
+    fliegen: 'Tippe die Fliegen 🪰 weg, bevor sie dein Pferd stechen. Lass die Schmetterlinge 🦋 in Ruhe!',
+    lasso: 'Der Pfeil wandert hin und her. Tippe, wenn er auf einem Pfosten steht. Weiter weg gibt es mehr Punkte. 10 Würfe.',
+    ring: 'Deine Lanze geht auf und ab. Tippe, wenn ein Ring genau vor der Lanzenspitze ist. Goldene Ringe zählen doppelt!',
+    wasser: 'Tippe die Rohre an, um sie zu drehen. Verbinde den Wasserhahn links mit der Tränke rechts. 3 Rätsel, 2 Minuten.',
+  });
+
+  // ---------- Ausritt im Gelände ----------
+  function Ausritt() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const lanesY = [H * 0.6, H * 0.74, H * 0.88], laneScale = [0.8, 0.9, 1];
+    const hwBase = Math.min(W * 0.46, H * 0.3);
+    const hx = W * 0.08;
+    let lane = 1, ly = lanesY[1], t = 0, dist = 0, lives = 3, inv = 0, score = 0, frame = 0, ft = 0, spawnT = 0.6, done = false;
+    const objs = [];
+    const imgs = [K.horseImg('run1'), K.horseImg('run2')];
+    const kinds = [{ k: 'busch', bad: true, w: 30 }, { k: 'stein', bad: true, w: 20 }, { k: 'zaun', bad: true, w: 12 }, { k: '🌼', p: 1, w: 26 }, { k: '🌷', p: 1, w: 18 }, { k: '🍎', p: 2, w: 10 }];
+    const tot = kinds.reduce((a, k) => a + k.w, 0);
+    const pick = () => { let r = Math.random() * tot; for (const k of kinds) if ((r -= k.w) < 0) return k; return kinds[0]; };
+    const tap = e => {
+      e.preventDefault();
+      if (done || C().paused) return;
+      const r = c.getBoundingClientRect(), y = e.clientY - r.top;
+      if (y < ly - hwBase * 0.3) lane = Math.max(0, lane - 1); else lane = Math.min(2, lane + 1);
+      Snd.play('click');
+    };
+    c.addEventListener('pointerdown', tap);
+    K.hud('🌼 0', '❤️❤️❤️ ⏱ 60');
+    const end = () => { done = true; C().paused = true; setTimeout(() => K.finish('ausritt', score, Math.ceil(score / 2) + Math.floor(Math.min(60, t) / 10), `${score} Punkte gesammelt`), 400); };
+    function drawObj(o) {
+      const s = laneScale[o.lane] * hwBase / 150, y = lanesY[o.lane];
+      if (o.kind.k === 'busch') { ctx.fillStyle = '#3F8E4E'; [[-18, -16, 20], [6, -22, 24], [24, -12, 17]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(o.x + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); }); ctx.fillStyle = '#E5484D'; ctx.beginPath(); ctx.arc(o.x + 4 * s, y - 28 * s, 3 * s, 0, 7); ctx.fill(); }
+      else if (o.kind.k === 'stein') { ctx.fillStyle = '#8E8B9C'; ctx.beginPath(); ctx.ellipse(o.x, y - 12 * s, 26 * s, 17 * s, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#ADAAB8'; ctx.beginPath(); ctx.ellipse(o.x - 6 * s, y - 18 * s, 10 * s, 6 * s, 0, 0, 7); ctx.fill(); }
+      else if (o.kind.k === 'zaun') { ctx.fillStyle = '#8B5A2B'; ctx.fillRect(o.x - 20 * s, y - 40 * s, 6 * s, 40 * s); ctx.fillRect(o.x + 14 * s, y - 40 * s, 6 * s, 40 * s); ctx.fillStyle = '#C9A46A'; ctx.fillRect(o.x - 24 * s, y - 34 * s, 48 * s, 6 * s); ctx.fillRect(o.x - 24 * s, y - 20 * s, 48 * s, 6 * s); }
+      else K.emoji(ctx, o.kind.k, o.x, y - 26 * s, 34 * s);
+    }
+    K.loop(dt => {
+      t += dt;
+      if (t >= 60 && !done) end();
+      const speed = W * (0.42 + Math.min(0.5, t * 0.008));
+      dist += speed * dt; inv = Math.max(0, inv - dt);
+      ly += (lanesY[lane] - ly) * Math.min(1, dt * 12);
+      spawnT -= dt;
+      if (spawnT <= 0) { spawnT = Math.max(0.35, 0.85 - t * 0.006) * (0.7 + Math.random() * 0.6); objs.push({ x: W + 40, lane: Math.floor(Math.random() * 3), kind: pick() }); }
+      const hw = hwBase * laneScale[lane];
+      const curLane = lanesY.reduce((b, y, i) => Math.abs(y - ly) < Math.abs(lanesY[b] - ly) ? i : b, 0);
+      objs.forEach(o => {
+        o.x -= speed * dt;
+        if (!o.gone && o.lane === curLane && o.x > hx + hw * 0.3 && o.x < hx + hw * 0.85) {
+          if (o.kind.bad) { if (inv <= 0) { o.gone = true; lives--; inv = 1.2; Snd.play('hurt'); pop(o.x, lanesY[o.lane] - 60, 'Autsch!', '#FF6B6B'); if (lives <= 0 && !done) end(); } }
+          else { o.gone = true; score += o.kind.p; Snd.play(o.kind.p > 1 ? 'sparkle' : 'pop'); pop(o.x, lanesY[o.lane] - 60, '+' + o.kind.p); }
+        }
+      });
+      for (let i = objs.length - 1; i >= 0; i--) if (objs[i].x < -60 || (objs[i].gone && !objs[i].kind.bad)) objs.splice(i, 1);
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      K.hud('🌼 ' + score, '❤️'.repeat(Math.max(0, lives)) + '🤍'.repeat(3 - Math.max(0, lives)) + ' ⏱ ' + Math.max(0, Math.ceil(60 - t)));
+      // Hintergrund
+      K.sky(ctx, W, H, t, '#86CDF4', '#E2F4FF');
+      K.cloud(ctx, ((W * 0.3 - dist * 0.05) % (W + 160) + W + 160) % (W + 160) - 80, H * 0.12, 1);
+      K.cloud(ctx, ((W * 0.85 - dist * 0.04) % (W + 160) + W + 160) % (W + 160) - 80, H * 0.22, 0.7);
+      ctx.fillStyle = '#9AD47F'; ctx.beginPath(); ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += 10) ctx.lineTo(x, H * 0.46 - Math.sin((x + dist * 0.15) / 80) * H * 0.035);
+      ctx.lineTo(W, H); ctx.fill();
+      // Bäume hinten
+      for (let i = 0; i < 6; i++) { const x = ((i * 140 - dist * 0.3) % (W + 140) + W + 140) % (W + 140) - 70, y = H * 0.48; ctx.fillStyle = '#7A5638'; ctx.fillRect(x - 5, y - 30, 10, 34); ctx.fillStyle = '#4FA05C'; ctx.beginPath(); ctx.arc(x, y - 44, 26, 0, 7); ctx.fill(); }
+      ground(ctx, W, H, H * 0.52, '#7CC96B');
+      lanesY.forEach((y, i) => { ctx.fillStyle = i % 2 ? '#D9B47A' : '#E3C08A'; ctx.fillRect(0, y - H * 0.06, W, H * 0.085); });
+      // Objekte und Pferd nach Tiefe sortiert
+      for (let l = 0; l < 3; l++) {
+        objs.filter(o => o.lane === l && !o.gone).forEach(drawObj);
+        if (curLane === l) {
+          ctx.globalAlpha = inv > 0 && Math.floor(inv * 10) % 2 ? 0.4 : 1;
+          K.drawHorse(ctx, imgs[frame], hx, ly + 4, hw);
+          ctx.globalAlpha = 1;
+        }
+      }
+      drawPops(ctx, dt);
+      if (t < 2.5) { ctx.globalAlpha = Math.min(1, 2.5 - t); big(ctx, '⬆ oben tippen · unten tippen ⬇', W / 2, H * 0.3, W * 0.05); ctx.globalAlpha = 1; }
+    });
+    return { stop() { c.removeEventListener('pointerdown', tap); } };
+  }
+
+  // ---------- Dressur-Takt ----------
+  function Dressur() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const hitX = W * 0.22, laneY = H * 0.38, travel = 1.7, total = 40;
+    const notes = [];
+    let bt = 1.2, beat = 0.66;
+    for (let i = 0; i < total; i++) { notes.push({ time: bt, done: false, gold: Math.random() < 0.12 }); const tempo = Math.max(0.42, 0.66 - i * 0.006); bt += Math.random() < 0.18 ? tempo * 2 : tempo; }
+    let t = 0, score = 0, combo = 0, best = 0, hits = 0, frame = 0, lastBeat = 0, fb = '', fbT = 0, finished = false;
+    const imgs = [K.horseImg('run1'), K.horseImg('run2')], hw = Math.min(W * 0.55, H * 0.34);
+    const shoe = (x, y, r, gold, a = 1) => {
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y);
+      ctx.fillStyle = gold ? '#FFE27A' : '#FFFFFF'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = gold ? '#C99A1E' : '#8D99A6'; ctx.lineWidth = r * 0.26; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, r * 0.08, r * 0.52, Math.PI * 0.95, Math.PI * 2.05, true); ctx.stroke(); ctx.restore();
+    };
+    const tap = e => {
+      e.preventDefault();
+      if (C().paused || finished) return;
+      let bestN = null, bd = 9;
+      for (const n of notes) { if (n.done) continue; const d = Math.abs(n.time - t); if (d < bd) { bd = d; bestN = n; } }
+      if (!bestN || bd > 0.22) { fb = 'Zu früh!'; fbT = 0.6; combo = 0; Snd.play('nope'); return; }
+      bestN.done = true; hits++;
+      if (bd < 0.09) { combo++; const p = (bestN.gold ? 6 : 3) + Math.min(5, Math.floor(combo / 4)); score += p; fb = combo >= 4 ? `Perfekt! ×${combo}` : 'Perfekt!'; Snd.tone(784, 0.12, 'triangle', 0.12); }
+      else { combo++; score += bestN.gold ? 2 : 1; fb = 'Gut!'; Snd.tone(587, 0.1, 'triangle', 0.1); }
+      best = Math.max(best, combo); fbT = 0.6;
+    };
+    c.addEventListener('pointerdown', tap);
+    K.loop(dt => {
+      t += dt;
+      // Metronom & Trab im Takt
+      if (t - lastBeat >= 0.66) { lastBeat = t; frame ^= 1; Snd.tone(1200, 0.03, 'square', 0.025); }
+      for (const n of notes) if (!n.done && t - n.time > 0.22) { n.done = true; n.miss = true; combo = 0; fb = 'Daneben'; fbT = 0.5; }
+      const left = notes.filter(n => !n.done).length;
+      K.hud('🎶 ' + score, `🔥 ${combo} · noch ${left}`);
+      if (!left && !finished) { finished = true; C().paused = true; setTimeout(() => K.finish('dressur', score, Math.round(score / 3), `${hits} von ${total} getroffen · beste Serie ${best}`), 500); }
+      // Zeichnen: Reithalle
+      ctx.fillStyle = '#C9A57A'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#8A5E35'; ctx.fillRect(0, H * 0.55, W, H * 0.08);
+      ['A', 'K', 'E', 'H', 'C'].forEach((L, i) => { const x = W * (0.1 + i * 0.2); ctx.fillStyle = '#fff'; ctx.fillRect(x - 14, H * 0.56, 28, 28); ctx.fillStyle = '#3A2D4A'; ctx.font = '900 18px ui-rounded,system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(L, x, H * 0.56 + 15); });
+      ground(ctx, W, H, H * 0.63, '#E5CFA3');
+      // Taktband
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(0, laneY - 38, W, 76, 0) : ctx.rect(0, laneY - 38, W, 76); ctx.fill();
+      const pulse = 1 + Math.max(0, 0.12 - (t - lastBeat)) * 1.2;
+      ctx.strokeStyle = '#845EF7'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(hitX, laneY, 30 * pulse, 0, 7); ctx.stroke();
+      const sp = (W - hitX + 40) / travel;
+      for (const n of notes) {
+        if (n.done && !n.miss) continue;
+        const x = hitX + (n.time - t) * sp;
+        if (x > W + 40 || x < -40) continue;
+        shoe(x, laneY, 24, n.gold, n.miss ? 0.3 : 1);
+      }
+      K.drawHorse(ctx, imgs[frame], W * 0.5 - hw / 2, H * 0.95, hw);
+      if (fbT > 0) { fbT -= dt; ctx.globalAlpha = Math.min(1, fbT * 2); big(ctx, fb, W / 2, laneY - 70, W * 0.07, fb.startsWith('Perfekt') ? '#FFE27A' : '#fff'); ctx.globalAlpha = 1; }
+    });
+    return { stop() { c.removeEventListener('pointerdown', tap); } };
+  }
+
+  // ---------- Fliegen verscheuchen ----------
+  function Fliegen() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const hw = Math.min(W * 0.8, H * 0.5), hh = hw * 360 / 340, gy = H * 0.86, hx = W / 2 - hw / 2;
+    const img = K.horseImg('stand');
+    let t = 0, score = 0, spawnT = 0.5, bT = 2, shake = 0, done = false;
+    const bugs = [];
+    const target = () => ({ x: hx + hw * (0.3 + Math.random() * 0.5), y: gy - hh * (0.35 + Math.random() * 0.35) });
+    const spawn = (kind) => {
+      const side = Math.floor(Math.random() * 4);
+      const p = side === 0 ? { x: -20, y: Math.random() * H * 0.8 } : side === 1 ? { x: W + 20, y: Math.random() * H * 0.8 } : { x: Math.random() * W, y: -20 };
+      const tg = kind === 'fly' ? target() : { x: Math.random() * W, y: Math.random() * H * 0.7 };
+      bugs.push({ kind, x: p.x, y: p.y, tx: tg.x, ty: tg.y, ph: Math.random() * 6, sp: kind === 'fly' ? H * (0.12 + Math.random() * 0.08) * (1 + t / 40) : H * 0.08, life: 0 });
+    };
+    const tap = e => {
+      e.preventDefault();
+      if (C().paused || done) return;
+      const r = c.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      let hit = null, bd = 44;
+      for (const b of bugs) { const d = Math.hypot(b.x - x, b.y - y); if (d < bd) { bd = d; hit = b; } }
+      if (!hit) return;
+      bugs.splice(bugs.indexOf(hit), 1);
+      if (hit.kind === 'fly') { score++; Snd.play('pop'); pop(hit.x, hit.y, '+1'); }
+      else { score = Math.max(0, score - 2); Snd.play('nope'); pop(hit.x, hit.y, 'Nicht die Schmetterlinge! −2', '#FF6B6B'); }
+    };
+    c.addEventListener('pointerdown', tap);
+    K.loop(dt => {
+      t += dt; shake = Math.max(0, shake - dt);
+      if (t >= 40 && !done) { done = true; C().paused = true; setTimeout(() => K.finish('fliegen', score, Math.ceil(score / 2), `${score} Fliegen verscheucht`), 300); }
+      spawnT -= dt; bT -= dt;
+      if (spawnT <= 0) { spawnT = Math.max(0.35, 1.0 - t * 0.018); spawn('fly'); }
+      if (bT <= 0) { bT = 2.5 + Math.random() * 2; spawn('butterfly'); }
+      for (let i = bugs.length - 1; i >= 0; i--) {
+        const b = bugs[i]; b.ph += dt * 9; b.life += dt;
+        const dx = b.tx - b.x, dy = b.ty - b.y, d = Math.hypot(dx, dy);
+        const wob = b.kind === 'fly' ? 18 : 30;
+        b.x += (dx / (d || 1)) * b.sp * dt + Math.cos(b.ph) * wob * dt;
+        b.y += (dy / (d || 1)) * b.sp * dt + Math.sin(b.ph * 1.3) * wob * dt;
+        if (b.kind === 'fly' && d < 10) { bugs.splice(i, 1); score = Math.max(0, score - 1); shake = 0.4; Snd.play('hurt'); pop(b.x, b.y, 'Pieks! −1', '#FF6B6B'); continue; }
+        if (b.kind === 'butterfly' && (d < 10 || b.life > 7)) { const tg = { x: Math.random() * W, y: Math.random() * H * 0.7 }; b.tx = tg.x; b.ty = tg.y; if (b.life > 9) bugs.splice(i, 1); }
+      }
+      K.hud('🪰 ' + score, '⏱ ' + Math.max(0, Math.ceil(40 - t)));
+      K.sky(ctx, W, H, t, '#8FD3FF', '#E9F8FF');
+      K.cloud(ctx, W * 0.2, H * 0.1, 0.9); K.cloud(ctx, W * 0.8, H * 0.16, 0.7);
+      ground(ctx, W, H, gy - 10, '#7CC96B');
+      ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(W / 2, gy, hw * 0.36, 8, 0, 0, 7); ctx.fill();
+      const sx = shake > 0 ? Math.sin(t * 80) * 4 : 0;
+      K.drawHorse(ctx, img, hx + sx, gy, hw);
+      for (const b of bugs) {
+        ctx.save(); ctx.translate(b.x, b.y);
+        if (b.kind === 'butterfly') ctx.scale(1, 0.75 + Math.abs(Math.sin(b.ph)) * 0.35);
+        K.emoji(ctx, b.kind === 'fly' ? '🪰' : '🦋', 0, 0, b.kind === 'fly' ? 30 : 36);
+        ctx.restore();
+      }
+      drawPops(ctx, dt);
+    });
+    return { stop() { c.removeEventListener('pointerdown', tap); } };
+  }
+
+  // ---------- Lasso ----------
+  function Lasso() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const gy = H * 0.78, hw = Math.min(W * 0.3, H * 0.24), img = K.horseImg('stand');
+    const minX = W * 0.32, maxX = W * 0.95;
+    let posts = [], m = 0.5, dir = 1, mSpeed = 0.55, state = 'aim', throws = 0, score = 0, t = 0, fly = null, msg = '', msgT = 0;
+    const newPosts = () => {
+      posts = [];
+      const zones = [[0.36, 0.52], [0.56, 0.72], [0.76, 0.93]];
+      zones.forEach((z, i) => posts.push({ x: W * (z[0] + Math.random() * (z[1] - z[0])), pts: i + 1, caught: false }));
+    };
+    newPosts();
+    const tap = e => {
+      e.preventDefault();
+      if (state !== 'aim' || C().paused) return;
+      throws++; state = 'fly';
+      fly = { x0: W * 0.17, y0: gy - hw * 0.9, x1: minX + (maxX - minX) * m, t: 0 };
+      Snd.play('jump');
+    };
+    c.addEventListener('pointerdown', tap);
+    K.hud('🤠 0', 'Wurf 1/10');
+    K.loop(dt => {
+      t += dt;
+      if (state === 'aim') { m += dir * mSpeed * dt; if (m > 1) { m = 1; dir = -1; } if (m < 0) { m = 0; dir = 1; } }
+      if (state === 'fly') {
+        fly.t += dt / 0.75;
+        if (fly.t >= 1) {
+          fly.t = 1;
+          const near = posts.reduce((b, p) => Math.abs(p.x - fly.x1) < Math.abs(b.x - fly.x1) ? p : b, posts[0]);
+          if (Math.abs(near.x - fly.x1) < W * 0.035) { near.caught = true; score += near.pts; msg = `Gefangen! +${near.pts}`; Snd.play(near.pts === 3 ? 'win' : 'coin'); }
+          else { msg = 'Daneben!'; Snd.play('nope'); }
+          state = 'wait'; msgT = 1.2;
+          K.hud('🤠 ' + score, 'Wurf ' + Math.min(10, throws + 1) + '/10');
+        }
+      }
+      if (state === 'wait') {
+        msgT -= dt;
+        if (msgT <= 0) {
+          if (throws >= 10) { state = 'end'; C().paused = true; K.finish('lasso', score, score, `${score} Punkte mit 10 Würfen`); return; }
+          state = 'aim'; fly = null; newPosts(); mSpeed = 0.55 + throws * 0.07;
+        }
+      }
+      // Zeichnen: Ranch
+      K.sky(ctx, W, H, t, '#F7C98B', '#FCE9CF');
+      ctx.fillStyle = '#E3B26A'; ctx.beginPath(); ctx.moveTo(0, gy - H * 0.1); ctx.quadraticCurveTo(W / 2, gy - H * 0.18, W, gy - H * 0.08); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+      ground(ctx, W, H, gy, '#D9A85E');
+      K.emoji(ctx, '🌵', W * 0.9, gy - H * 0.13, 40);
+      posts.forEach(p => {
+        ctx.fillStyle = '#7A4E2C'; ctx.fillRect(p.x - 6, gy - 60, 12, 62);
+        ctx.fillStyle = '#9C6A3C'; ctx.beginPath(); ctx.ellipse(p.x, gy - 60, 7, 3, 0, 0, 7); ctx.fill();
+        ctx.font = '900 14px ui-rounded,system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#5A3A20'; ctx.fillText('+' + p.pts, p.x, gy + 16);
+        if (p.caught) { ctx.strokeStyle = '#E8590C'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(p.x, gy - 40, 16, 6, 0, 0, 7); ctx.stroke(); }
+      });
+      K.drawHorse(ctx, img, W * 0.02, gy, hw);
+      // kreisendes Lasso beim Zielen
+      const hand = { x: W * 0.17, y: gy - hw * 0.95 };
+      if (state === 'aim') {
+        const a = t * 9;
+        ctx.strokeStyle = '#C0392B'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(hand.x + Math.cos(a) * 8, hand.y - 24, 24, 8, 0, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(hand.x, hand.y); ctx.lineTo(hand.x + Math.cos(a) * 8, hand.y - 16); ctx.stroke();
+        // Zielpfeil
+        const mx = minX + (maxX - minX) * m;
+        ctx.fillStyle = '#E8590C'; ctx.beginPath(); ctx.moveTo(mx, gy - 74); ctx.lineTo(mx - 10, gy - 92); ctx.lineTo(mx + 10, gy - 92); ctx.closePath(); ctx.fill();
+      }
+      if (fly) {
+        const k = fly.t, x = fly.x0 + (fly.x1 - fly.x0) * k, y = fly.y0 + (gy - 40 - fly.y0) * k - Math.sin(k * Math.PI) * H * 0.22;
+        ctx.strokeStyle = '#C0392B'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(hand.x, hand.y); ctx.quadraticCurveTo((hand.x + x) / 2, Math.min(hand.y, y) - 30, x, y); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(x, y, 20, 7, 0, 0, 7); ctx.stroke();
+      }
+      if (msgT > 0) { ctx.globalAlpha = Math.min(1, msgT * 2); big(ctx, msg, W / 2, H * 0.28, W * 0.075); ctx.globalAlpha = 1; }
+      big(ctx, 'Tippen zum Werfen!', W / 2, H * 0.93, 15, '#fff');
+    });
+    return { stop() { c.removeEventListener('pointerdown', tap); } };
+  }
+
+  // ---------- Ringstechen ----------
+  function Ring() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const gy = H * 0.85, hw = Math.min(W * 0.52, H * 0.36), hx = W * 0.02;
+    const imgs = [K.horseImg('run1'), K.horseImg('run2')];
+    const total = 15;
+    let t = 0, frame = 0, ft = 0, score = 0, taken = 0, spawned = 0, nextT = 1.0, done = false, dist = 0;
+    const rings = [];
+    const tipX = hx + hw * 1.15;
+    const tipY = () => gy - hw * 0.95 + Math.sin(t * (2.2 + t * 0.02)) * hw * 0.42;
+    const tap = e => {
+      e.preventDefault();
+      if (C().paused || done) return;
+      const ty = tipY();
+      const r = rings.find(r => !r.done && Math.abs(r.x - tipX) < r.r * 1.4);
+      if (!r) { Snd.play('click'); return; }
+      r.done = true;
+      if (Math.abs(r.y - ty) < r.r * 0.85) { r.hit = true; taken++; const p = r.gold ? 2 : 1; score += p; Snd.play(r.gold ? 'sparkle' : 'coin'); pop(tipX, r.y - 30, '+' + p); }
+      else { Snd.play('nope'); pop(tipX, r.y - 30, r.y < ty ? 'Zu tief!' : 'Zu hoch!', '#FF6B6B'); }
+    };
+    c.addEventListener('pointerdown', tap);
+    K.loop(dt => {
+      t += dt;
+      const speed = W * (0.32 + Math.min(0.25, t * 0.006));
+      dist += speed * dt;
+      nextT -= dt;
+      if (nextT <= 0 && spawned < total) { spawned++; nextT = 1.5 + Math.random() * 0.8 - Math.min(0.5, t * 0.01); rings.push({ x: W + 40, y: gy - hw * (0.55 + Math.random() * 0.8), r: Math.max(16, hw * 0.12), gold: Math.random() < 0.2, done: false }); }
+      rings.forEach(r => { if (r.hit) { r.x = tipX; r.y = tipY(); } else r.x -= speed * dt; if (!r.done && r.x < tipX - r.r * 1.5) { r.done = true; } });
+      for (let i = rings.length - 1; i >= 0; i--) if (rings[i].x < -50) rings.splice(i, 1);
+      ft += dt; if (ft > 0.1) { ft = 0; frame ^= 1; }
+      K.hud('💍 ' + score, `Ring ${Math.min(total, spawned)}/${total}`);
+      if (spawned >= total && rings.every(r => r.done) && !done) { done = true; C().paused = true; setTimeout(() => K.finish('ring', score, score, `${taken} von ${total} Ringen gestochen`), 600); }
+      // Turnierplatz
+      K.sky(ctx, W, H, t, '#8FD3FF', '#E9F8FF');
+      for (let i = 0; i < 8; i++) { const x = ((i * 90 - dist * 0.2) % (W + 90) + W + 90) % (W + 90) - 45; ctx.fillStyle = ['#E5484D', '#FFD43B', '#3D8BFF', '#51CF66'][i % 4]; ctx.beginPath(); ctx.moveTo(x, H * 0.2); ctx.lineTo(x + 30, H * 0.2); ctx.lineTo(x + 15, H * 0.26); ctx.fill(); }
+      ctx.strokeStyle = '#A0703F'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, H * 0.2); ctx.lineTo(W, H * 0.2); ctx.stroke();
+      ground(ctx, W, H, gy - H * 0.12, '#7CC96B');
+      ctx.fillStyle = '#E3C08A'; ctx.fillRect(0, gy - 6, W, H - gy + 6);
+      // Ringe an Galgen
+      rings.forEach(r => {
+        if (!r.hit) { ctx.strokeStyle = '#8B5A2B'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(r.x + r.r * 2.4, gy); ctx.lineTo(r.x + r.r * 2.4, gy - hw * 1.7); ctx.lineTo(r.x, gy - hw * 1.7); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(r.x, gy - hw * 1.7); ctx.lineTo(r.x, r.y - r.r); ctx.stroke(); }
+        ctx.strokeStyle = r.gold ? '#F5C542' : '#D0D7DE'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.stroke();
+      });
+      K.drawHorse(ctx, imgs[frame], hx, gy, hw);
+      // Lanze
+      const ty = tipY();
+      ctx.strokeStyle = '#6E4A2E'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hx + hw * 0.45, gy - hw * 0.95); ctx.lineTo(tipX, ty); ctx.stroke();
+      ctx.fillStyle = '#C0C7CF'; ctx.beginPath(); ctx.arc(tipX, ty, 6, 0, 7); ctx.fill();
+      drawPops(ctx, dt);
+    });
+    return { stop() { c.removeEventListener('pointerdown', tap); } };
+  }
+
+  // ---------- Wasserlauf (Rohr-Rätsel) ----------
+  // Rohr-Anschlüsse als Bits: oben 1, rechts 2, unten 4, links 8
+  function Wasser() {
+    const a = K.area();
+    a.style.background = 'linear-gradient(180deg,#C5F6FA,#E3FAFC)';
+    const sizes = [4, 5, 5];
+    let level = 0, solved = 0, timeLeft = 120, grid, n, r0, rEnd, done = false;
+    const rot = m => ((m << 1) | (m >> 3)) & 15;
+    function makeLevel() {
+      n = sizes[level];
+      grid = Array.from({ length: n }, () => Array(n).fill(0));
+      r0 = Math.floor(Math.random() * n);
+      let r = r0;
+      const conn = (r1, c1, r2, c2) => {
+        if (r2 < r1) { grid[r1][c1] |= 1; grid[r2][c2] |= 4; } else if (r2 > r1) { grid[r1][c1] |= 4; grid[r2][c2] |= 1; }
+        else if (c2 > c1) { grid[r1][c1] |= 2; grid[r2][c2] |= 8; }
+      };
+      grid[r][0] |= 8;
+      for (let c = 0; c < n; c++) {
+        const rt = Math.floor(Math.random() * n);
+        while (r !== rt) { const nr = r + Math.sign(rt - r); conn(r, c, nr, c); r = nr; }
+        if (c < n - 1) conn(r, c, r, c + 1);
+      }
+      rEnd = r; grid[r][n - 1] |= 2;
+      const fillers = [5, 10, 3, 6, 12, 9, 7, 11];
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        if (!grid[i][j]) grid[i][j] = fillers[Math.floor(Math.random() * fillers.length)];
+        for (let k = Math.floor(Math.random() * 4); k > 0; k--) grid[i][j] = rot(grid[i][j]);
+      }
+      if (flow().ok) makeLevel();
+    }
+    function flow() {
+      const wet = Array.from({ length: n }, () => Array(n).fill(false));
+      if (!(grid[r0][0] & 8)) return { wet, ok: false };
+      const q = [[r0, 0]]; wet[r0][0] = true;
+      const D = [[1, -1, 0, 4], [2, 0, 1, 8], [4, 1, 0, 1], [8, 0, -1, 2]];
+      while (q.length) {
+        const [i, j] = q.shift();
+        for (const [b, di, dj, ob] of D) {
+          if (!(grid[i][j] & b)) continue;
+          const ni = i + di, nj = j + dj;
+          if (ni < 0 || nj < 0 || ni >= n || nj >= n || wet[ni][nj] || !(grid[ni][nj] & ob)) continue;
+          wet[ni][nj] = true; q.push([ni, nj]);
+        }
+      }
+      return { wet, ok: wet[rEnd][n - 1] && !!(grid[rEnd][n - 1] & 2) };
+    }
+    const tileSVG = (m, w) => {
+      const col = w ? '#22B8CF' : '#ADB5BD', inner = w ? '#99E9F2' : '#DEE2E6';
+      let p = '';
+      [[1, 50, 0], [2, 100, 50], [4, 50, 100], [8, 0, 50]].forEach(([b, x, y]) => { if (m & b) p += `<line x1="50" y1="50" x2="${x}" y2="${y}" stroke="${col}" stroke-width="30" stroke-linecap="butt"/><line x1="50" y1="50" x2="${x}" y2="${y}" stroke="${inner}" stroke-width="12"/>`; });
+      return `<svg viewBox="0 0 100 100" width="100%" height="100%">${p}<circle cx="50" cy="50" r="15" fill="${col}"/><circle cx="50" cy="50" r="6" fill="${inner}"/></svg>`;
+    };
+    function render() {
+      const { wet, ok } = flow();
+      const size = Math.floor(Math.min((a.clientWidth - 40 - 3 * (n - 1)) / (n + 1.2), (a.clientHeight - 120) / n, 84));
+      let h = `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px"><div style="font-weight:900;color:#0B7285">Rätsel ${level + 1} von 3</div><div style="display:flex;align-items:center;gap:2px">`;
+      h += `<div style="display:grid;grid-template-rows:repeat(${n},${size}px);width:${size * 0.6}px;font-size:${size * 0.5}px">${Array.from({ length: n }, (_, i) => `<div style="display:grid;place-items:center">${i === r0 ? '🚰' : ''}</div>`).join('')}</div>`;
+      h += `<div style="display:grid;grid-template-columns:repeat(${n},${size}px);grid-auto-rows:${size}px;gap:3px;background:#fff;padding:6px;border-radius:16px;box-shadow:0 4px 0 rgba(0,0,0,.08)">`;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) h += `<button data-t="${i},${j}" style="background:${wet[i][j] ? '#E3FAFC' : '#F8F9FA'};border-radius:10px;padding:0;touch-action:none">${tileSVG(grid[i][j], wet[i][j])}</button>`;
+      h += `</div><div style="display:grid;grid-template-rows:repeat(${n},${size}px);width:${size * 0.6}px;font-size:${size * 0.5}px">${Array.from({ length: n }, (_, i) => `<div style="display:grid;place-items:center">${i === rEnd ? (ok ? '🐴' : '🪣') : ''}</div>`).join('')}</div></div></div>`;
+      a.innerHTML = h;
+      return ok;
+    }
+    a.onpointerdown = e => {
+      const b = e.target.closest('[data-t]'); if (!b || done || C().paused) return;
+      e.preventDefault();
+      const [i, j] = b.dataset.t.split(',').map(Number);
+      grid[i][j] = rot(grid[i][j]); Snd.play('click');
+      if (render()) {
+        done = true; solved++; Snd.play('win');
+        setTimeout(() => {
+          if (level < sizes.length - 1) { level++; done = false; makeLevel(); render(); }
+          else finishGame();
+        }, 1100);
+      }
+    };
+    const finishGame = () => { done = true; C().paused = true; K.finish('wasser', solved, solved * 4 + Math.ceil(Math.max(0, timeLeft) / 10), `${solved} von 3 Rätseln gelöst`); };
+    makeLevel(); render();
+    K.loop(dt => {
+      timeLeft -= dt;
+      K.hud('💧 ' + solved + '/3', '⏱ ' + Math.max(0, Math.ceil(timeLeft)));
+      if (timeLeft <= 0 && !done) finishGame();
+    });
+    return { stop() { a.onpointerdown = null; } };
+  }
+
+  Object.assign(Games.FNS, { ausritt: Ausritt, dressur: Dressur, fliegen: Fliegen, lasso: Lasso, ring: Ring, wasser: Wasser });
 })();
 
 </script>
