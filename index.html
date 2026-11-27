@@ -322,6 +322,25 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
 .chess .cmsg { font-weight: 900; font-size: 17px; color: var(--ink); min-height: 24px; text-align: center; }
 .newb { display: inline-block; background: #E64980; color: #fff; font-size: 10px; font-weight: 900; border-radius: 8px; padding: 1px 6px; vertical-align: middle; }
 
+/* Bergfahrt: Werkstatt */
+.garage .gtabs { display: flex; gap: 6px; }
+.garage .gtabs button { flex: 1; padding: 6px; border-radius: 14px; background: #fff; font-weight: 900; font-size: 13px; color: var(--ink2); box-shadow: 0 2px 0 var(--line); border: 2.5px solid transparent; }
+.garage .gtabs button.on { border-color: var(--pink); color: var(--ink); background: #FFF0F6; }
+.garage .werk { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 6px; }
+.garage .wrow { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 14px; padding: 4px 8px; box-shadow: 0 2px 0 var(--line); border: 2.5px solid transparent; text-align: left; color: var(--ink); min-height: 0; }
+.garage .wrow:first-child { grid-column: 1 / -1; }
+.garage .wrow.armed { border-color: #F59F00; background: #FFF9DB; }
+.garage .wrow.max { background: #EBFBEE; }
+.garage .wi { font-size: 24px; flex: none; }
+.garage .wt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.garage .wt b { font-size: 13px; }
+.garage .wt b small { color: #2B8A3E; font-weight: 800; }
+.garage .wt > small { font-size: 10.5px; color: var(--ink2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.garage .pips { display: flex; gap: 2px; margin-top: 2px; }
+.garage .pips i { flex: 1; max-width: 14px; height: 6px; border-radius: 3px; background: #E9ECEF; }
+.garage .pips i.on { background: linear-gradient(90deg,#40C057,#82C91E); }
+.garage .wp { flex: none; font-size: 12px; font-weight: 900; text-align: center; display: inline-flex; align-items: center; gap: 3px; line-height: 1.2; }
+
 </style>
 </head>
 <body>
@@ -427,7 +446,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 // WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
 // Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
@@ -435,6 +454,7 @@ const APP_VERSION = '1.7.0';
 
 // „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
 const CHANGELOG = [
+  { v: '1.8.0', items: ['🔧 Bergfahrt: Neue Werkstatt in der Garage! Verbessere Tank (15 Stufen), Motor, Getriebe, Reifen und Federung (je 10 Stufen) mit Fahrzeugmünzen', '⛽ Jede Tank-Stufe bringt 15 % mehr Sprit – und die Tankstellen kommen etwas früher', '⚠️ Achtung: Die Fahrzeuge rutschen und hüpfen jetzt mehr – mit guten Reifen und Federung wird es wieder sicherer'] },
   { v: '1.7.0', items: ['🟢🟠🔴 Jedes Spiel hat jetzt Leicht, Mittel und Schwer – schwerer gibt mehr Münzen (bis ×2)', 'Alle Spiele sind kniffliger geworden 💪', '4 neue Spiele: Stall-Kracher 🍬, Pferde-Schach ♞, Hufe auskratzen 🪨 und Futter sortieren 🧺', '🥱 Dein Pferd braucht dich mehr: Die Balken sinken schneller, und es langweilt sich, wenn du es zu lange nicht beachtest', '💕 Beim Streicheln brummelt dein Pferd jetzt leise und zufrieden'] },
   { v: '1.6.0', items: ['🚙 Neues großes Spiel: Bergfahrt! Handy quer drehen, Gas geben, Saltos machen', 'Fahrzeugmünzen sammeln: Traktor, Geländewagen und das Einhornmobil 🦄 freischalten', 'Neue Strecken: Wüste, Winterland und der Mond mit wenig Schwerkraft 🌙', 'Neue Preise: Schöne Sachen sind jetzt etwas ganz Besonderes ✨ – Glitzerspray hält 24 Stunden'] },
   { v: '1.5.0', items: ['🎵 Fröhliche Musik – jedes Spiel klingt ein bisschen anders', '🌙 Schlaflied mit leisem Schnarchen, wenn dein Pferd schläft', '🔊 Viele neue Geräusche: Striegeln, Waschen, Fressen, Trinken, Hufgetrappel, Springen', '2 neue Spiele: Stall ausmisten und Mähne flechten', 'Musik und Geräusche lassen sich in ⚙️ getrennt einstellen'] },
@@ -4358,6 +4378,31 @@ const Games = (() => {
     { id: 'winter', name: 'Winterland', icon: '❄️', price: 6000, g: 900, grip: 0.55, amp: 1.1, sky: ['#A9C9E8', '#EEF5FC'], far: '#DCE8F4', ground: '#9DB4CC', top: '#FFFFFF', deco: 'pine', seed: 3 },
     { id: 'mond', name: 'Mond', icon: '🌙', price: 10000, g: 300, grip: 0.85, amp: 1.35, sky: ['#05061A', '#2A1F5C'], far: '#4A4766', ground: '#6E6B7C', top: '#B8B5C4', deco: 'crater', seed: 4, night: true },
   ];
+  // Werkstatt: Teile verbessern (gelten für alle Fahrzeuge). Jede Stufe bringt einen festen Prozent-Sprung,
+  // jede Stufe kostet prozentual mehr als die vorige.
+  const UPGRADES = [
+    { id: 'tank', name: 'Tank', icon: '⛽', max: 15, base: 100, grow: 1.25, step: 15, desc: 'Mehr Sprit – du kommst weiter' },
+    { id: 'motor', name: 'Motor', icon: '⚙️', max: 10, base: 150, grow: 1.28, step: 12, desc: 'Mehr Zugkraft am Berg' },
+    { id: 'getriebe', name: 'Getriebe', icon: '🔩', max: 10, base: 150, grow: 1.28, step: 7, desc: 'Schneller anfahren, höheres Tempo' },
+    { id: 'reifen', name: 'Reifen', icon: '🛞', max: 10, base: 150, grow: 1.28, step: 8, desc: 'Bessere Bodenhaftung, weniger Rutschen' },
+    { id: 'federung', name: 'Federung', icon: '🌀', max: 10, base: 150, grow: 1.28, step: 6, desc: 'Weniger Hüpfen, kippt nicht so leicht' },
+  ];
+  const upCost = (u, lvl) => Math.round(u.base * Math.pow(u.grow, lvl) / 5) * 5;
+  // Werte des Fahrzeugs inkl. Werkstatt-Stufen
+  function tuned(V, up) {
+    const L = id => Math.max(0, Math.min(UPGRADES.find(u => u.id === id).max, up[id] | 0));
+    return {
+      tank: V.tank * (1 + 0.15 * L('tank')),
+      power: V.power * (1 + 0.12 * L('motor')),
+      vmax: V.vmax * (1 + 0.07 * L('getriebe')),
+      launch: 1 + 0.1 * L('getriebe'),             // Extra-Schub beim Anfahren
+      grip: V.grip * 0.75 * (1 + 0.08 * L('reifen')), // Grundhaftung bewusst schwächer als bis 1.7
+      bounce: 1.38 - 0.03 * L('federung'),           // 1 = kein Abprallen
+      tilt: 0.34 - 0.013 * L('federung'),            // wie stark Gas am Boden das Fahrzeug aufbäumt
+      air: V.air * (1 + 0.04 * L('federung')),
+    };
+  }
+
   // Fahrzeugmünzen-Werte: kleine oft, große erst weiter hinten und selten
   const FM_VALUES = [5, 10, 15, 20, 100, 500];
 
@@ -4369,6 +4414,8 @@ const Games = (() => {
     if (!h.vehicle) h.vehicle = 'kutsche';
     if (!h.map) h.map = 'wiese';
     if (!h.best) h.best = {};
+    if (!h.up || typeof h.up !== 'object') h.up = {};
+    for (const u of UPGRADES) if (typeof h.up[u.id] !== 'number') h.up[u.id] = 0;
     return h;
   }
   // Fahrzeugmünze als Bild (Kutsche drauf)
@@ -4400,7 +4447,15 @@ const Games = (() => {
   // ---------- Garage (Startbildschirm) ----------
   function garage(a, g, api) {
     const H = hill();
-    let armed = null;
+    let armed = null, tab = 'fahr';
+    const werkstatt = () => UPGRADES.map(u => {
+      const lvl = H.up[u.id], max = lvl >= u.max, cost = upCost(u, lvl), arm = armed === 'up_' + u.id;
+      const pct = Math.round(u.step * lvl);
+      return `<button class="wrow ${arm ? 'armed' : ''} ${max ? 'max' : ''}" data-u="${u.id}"><span class="wi">${u.icon}</span>
+        <span class="wt"><b>${u.name} <small>Stufe ${lvl}/${u.max}${lvl ? ` · +${pct} %` : ''}</small></b><small>${u.desc}</small>
+        <span class="pips">${Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</span></span>
+        <span class="wp">${max ? '⭐ Maximal' : arm ? `Kaufen?<br>${fmIcon(13)} ${fmt(cost)}` : `⬆️ ${fmIcon(13)} ${fmt(cost)}`}</span></button>`;
+    }).join('');
     const render = () => {
       const tired = S.stats.energy < g.energy;
       const vehCard = v => {
@@ -4413,8 +4468,10 @@ const Games = (() => {
       };
       a.innerHTML = `<div class="garage">
         <div class="gh"><span style="font-size:20px">🚗 Garage</span><span style="flex:1"></span><span class="pill" style="display:flex;align-items:center;gap:5px">${fmIcon(18)} ${fmt(H.fm)}</span><span class="pill" style="color:${tired ? '#E8590C' : '#2B8A3E'}">⚡ ${Math.floor(S.stats.energy)} / ${g.energy}</span></div>
-        <div class="cols"><div class="col"><b class="t">Fahrzeuge</b><div class="grid">${VEHICLES.map(vehCard).join('')}</div></div>
-        <div class="col"><b class="t">Strecken</b><div class="grid">${MAPS.map(mapCard).join('')}</div></div></div>
+        <div class="gtabs"><button class="${tab === 'fahr' ? 'on' : ''}" data-tab="fahr">🚗 Fahrzeuge & Strecken</button><button class="${tab === 'werk' ? 'on' : ''}" data-tab="werk">🔧 Werkstatt</button></div>
+        ${tab === 'fahr' ? `<div class="cols"><div class="col"><b class="t">Fahrzeuge</b><div class="grid">${VEHICLES.map(vehCard).join('')}</div></div>
+        <div class="col"><b class="t">Strecken</b><div class="grid">${MAPS.map(mapCard).join('')}</div></div></div>`
+        : `<div class="werk">${werkstatt()}</div>`}
         ${K.diffPicker('hill')}
         <div style="display:flex;gap:8px;align-items:center"><span style="flex:1;font-size:12px;font-weight:700;color:var(--ink2)">Fahrzeugmünzen sammelst du unterwegs – und mit Saltos ↺ ↻ und Flugzeit! Normale 🪙 kommen in deinen Geldbeutel.</span>
         <button class="btn" id="gBack" style="flex:none;padding:10px 16px">Zurück</button><button class="btn pri" id="gGo" style="flex:none;padding:10px 22px" ${tired ? 'disabled' : ''}>${tired ? '😴 Zu müde' : 'Losfahren! 🏁'}</button></div></div>`;
@@ -4425,6 +4482,15 @@ const Games = (() => {
       Snd.play('click');
       if (b.id === 'gBack') { a.onclick = null; api.close(); return; }
       if (b.dataset.d) { K.setDiff('hill', +b.dataset.d); render(); return; }
+      if (b.dataset.tab) { tab = b.dataset.tab; armed = null; render(); return; }
+      if (b.dataset.u) {
+        const u = UPGRADES.find(x => x.id === b.dataset.u), lvl = H.up[u.id];
+        if (lvl >= u.max) return;
+        if (armed !== 'up_' + u.id) { armed = 'up_' + u.id; render(); return; }
+        const cost = upCost(u, lvl);
+        if (H.fm < cost) { Snd.play('nope'); toast(`Dir fehlen noch ${fmt(cost - H.fm)} Fahrzeugmünzen 🔧`); armed = null; render(); return; }
+        H.fm -= cost; H.up[u.id] = lvl + 1; armed = null; save(); Snd.play('win'); render(); return;
+      }
       if (b.id === 'gGo') { a.onclick = null; if (!api.launch({ vehicle: H.vehicle, map: H.map })) { toast('Dein Pferd ist zu müde 😴'); api.close(); } return; }
       const id = b.dataset.v || b.dataset.m; if (!id) return;
       const item = (b.dataset.v ? VEHICLES : MAPS).find(x => x.id === id);
@@ -4440,6 +4506,7 @@ const Games = (() => {
     const H = hill();
     const V = VEHICLES.find(v => v.id === opt.vehicle) || VEHICLES[0];
     const M = MAPS.find(m => m.id === opt.map) || MAPS[0];
+    const T = tuned(V, H.up);
     const a = K.area();
     const { c, ctx, W, H: SH } = K.makeCanvas();
     const z = SH / 330; // Zoom: Weltgröße passend zur Bildschirmhöhe
@@ -4467,7 +4534,7 @@ const Games = (() => {
 
     // Gegenstände entlang der Strecke (in Abschnitten erzeugt)
     const items = [];
-    let genTo = 400, nextFuel = 250 * PX;
+    let genTo = 400, nextFuel = 200 * PX;
     const rnd = (k => () => { k = (k * 1103515245 + 12345) >>> 0; return k / 4294967296; })(M.seed * 31 + Date.now() % 9973);
     function pickFm(m) {
       const w = [[5, 60], [10, m > 150 ? 22 : 0], [15, m > 300 ? 14 : 0], [20, m > 450 ? 10 : 0], [100, m > 650 ? 3 : 0], [500, m > 1100 ? 0.7 : 0]];
@@ -4478,7 +4545,7 @@ const Games = (() => {
     function generate(to) {
       while (genTo < to) {
         const x0 = genTo, m = x0 / PX;
-        if (x0 >= nextFuel) { items.push({ k: 'fuel', x: x0, y: groundY(x0) - 26 }); nextFuel += (300 + m * 0.15) * PX * K.D(1.2, 1.4, 1.7); }
+        if (x0 >= nextFuel) { items.push({ k: 'fuel', x: x0, y: groundY(x0) - 26 }); nextFuel += (230 + m * 0.12) * PX * K.D(1.1, 1.25, 1.45); }
         else if (rnd() < 0.42) {
           const v = pickFm(m);
           if (v >= 100) items.push({ k: 'fm', v, x: x0, y: groundY(x0) - 60 - rnd() * 40 });
@@ -4495,7 +4562,7 @@ const Games = (() => {
       { x: sx, y: groundY(sx) - r0, ox: sx, oy: groundY(sx) - r0, r: r0, g: false, rot: 0 },
       { x: sx + V.base, y: groundY(sx + V.base) - r1, ox: sx + V.base, oy: groundY(sx + V.base) - r1, r: r1, g: false, rot: 0 },
     ];
-    let t = 0, fuel = V.tank, dist = 0, maxX = sx, fmRun = 0, coinsRun = 0, flipsRun = 0, ended = false, stillT = 0;
+    let t = 0, fuel = T.tank, dist = 0, maxX = sx, fmRun = 0, coinsRun = 0, flipsRun = 0, ended = false, stillT = 0;
     let air = false, airStart = 0, angAcc = 0, lastAng = 0, camX = 0, camY = groundY(sx) - 200, trail = [];
     const pops = [];
     const pop = (txt, col) => pops.push({ txt, col, t: 0 });
@@ -4545,7 +4612,7 @@ const Games = (() => {
     }
 
     function physics(dt) {
-      const g = M.g, grip = V.grip * M.grip;
+      const g = M.g, grip = T.grip * M.grip;
       const gas = keys.gas && fuel > 0, brake = keys.brake;
       for (const w of wh) {
         const vx = (w.x - w.ox) * 0.999, vy = (w.y - w.oy) * 0.999;
@@ -4557,16 +4624,19 @@ const Games = (() => {
         if (!w.g) continue;
         const s = slope(w.x), n = Math.hypot(1, s), tx = 1 / n, ty = s / n;
         const vt = ((w.x - w.ox) * tx + (w.y - w.oy) * ty) / dt;
-        if (gas && vt < V.vmax) { const acc = V.power * Math.min(1.2, grip) * dt * dt * 0.5; w.x += tx * acc; w.y += ty * acc; }
+        if (gas && vt < T.vmax) {
+          const boost = vt < T.vmax * 0.4 ? T.launch : 1;
+          const acc = T.power * boost * Math.min(1.5, 0.35 + 0.65 * grip) * dt * dt * 0.5; w.x += tx * acc; w.y += ty * acc;
+        }
         if (brake) {
           if (vt > 20) { const k = 0.06 * Math.min(1, grip); w.ox += (w.x - w.ox) * k; w.oy += (w.y - w.oy) * k; }
-          else if (vt > -V.vmax * 0.35) { const acc = V.power * 0.35 * dt * dt * 0.5; w.x -= tx * acc; w.y -= ty * acc; }
+          else if (vt > -T.vmax * 0.35) { const acc = T.power * 0.35 * dt * dt * 0.5; w.x -= tx * acc; w.y -= ty * acc; }
         }
       }
       // Kippen: in der Luft stark, am Boden leicht (Wheelie)
       const inAir = !wh[0].g && !wh[1].g;
       const tq = (gas || (keys.gas && fuel <= 0) ? -1 : 0) + (brake ? 1 : 0);
-      if (tq) rotateAll(tq * V.air * (inAir ? 1 : 0.22) * dt * dt);
+      if (tq) rotateAll(tq * T.air * (inAir ? 1 : T.tilt) * dt * dt);
       // feste Achse
       for (let k = 0; k < 4; k++) {
         const dx = wh[1].x - wh[0].x, dy = wh[1].y - wh[0].y, d = Math.hypot(dx, dy) || 1, diff = (d - V.base) / d * 0.5;
@@ -4581,7 +4651,7 @@ const Games = (() => {
           w.x += nx * pen; w.y += ny * pen;
           let vx = w.x - w.ox, vy = w.y - w.oy;
           const vn = vx * nx + vy * ny;
-          if (vn < 0) { vx -= nx * vn * 1.15; vy -= ny * vn * 1.15; }
+          if (vn < 0) { vx -= nx * vn * T.bounce; vy -= ny * vn * T.bounce; }
           // Rollreibung, bei Glätte weniger
           const roll = 0.0015 + (keys.gas || keys.brake ? 0 : 0.004 * Math.min(1, grip));
           vx *= 1 - roll; vy *= 1 - roll;
@@ -4590,7 +4660,7 @@ const Games = (() => {
         w.rot += (w.x - w.ox) / w.r;
       }
       // Tank
-      fuel = Math.max(0, fuel - dt * (gas ? V.burn : V.burn * 0.12) * (100 / V.tank) * (V.tank / 100));
+      fuel = Math.max(0, fuel - dt * (gas ? V.burn : V.burn * 0.12));
     }
 
     function step(dt) {
@@ -4634,7 +4704,7 @@ const Games = (() => {
         const near = [cc, local(headLocal.x, headLocal.y), wh[0], wh[1]].some(p => Math.hypot(p.x - it.x, p.y - it.y) < (it.k === 'fm' && it.v >= 100 ? 40 : 32));
         if (!near) continue;
         items.splice(i, 1);
-        if (it.k === 'fuel') { fuel = V.tank; Snd.play('slurp'); pop('Vollgetankt! ⛽', '#B2F2BB'); }
+        if (it.k === 'fuel') { fuel = T.tank; Snd.play('slurp'); pop('Vollgetankt! ⛽', '#B2F2BB'); }
         else if (it.k === 'coin') { coinsRun++; Snd.play('coin'); pop('+1 🪙', '#FFE066'); }
         else { fmRun += it.v; H.fm += it.v; Snd.play(it.v >= 100 ? 'sparkle' : 'coin'); if (it.v >= 100) pop(`+${it.v}!`, it.v >= 500 ? '#E599F7' : '#74C0FC'); }
       }
@@ -4642,7 +4712,7 @@ const Games = (() => {
       // Motor
       if (eng) {
         const ac = Snd.ctx.currentTime, rev = keys.gas && fuel > 0 ? 1 : 0.35;
-        const f0 = 45 + Math.min(1, sp / V.vmax) * 70 + rev * 25;
+        const f0 = 45 + Math.min(1, sp / T.vmax) * 70 + rev * 25;
         eng.o.frequency.setTargetAtTime(f0, ac, 0.05); eng.o2.frequency.setTargetAtTime(f0 / 2, ac, 0.05);
         eng.f.frequency.setTargetAtTime(300 + rev * 700, ac, 0.05);
         eng.g.gain.setTargetAtTime(fuel > 0 ? 0.05 + rev * 0.05 : 0.0001, ac, 0.08);
@@ -4740,7 +4810,7 @@ const Games = (() => {
       const fw = Math.min(200, W * 0.24), fx = 12, fy = 10;
       ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(fx, fy, fw + 40, 26, 13) : ctx.rect(fx, fy, fw + 40, 26); ctx.fill();
       ctx.font = '18px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('⛽', fx + 6, fy + 13);
-      const fr = fuel / V.tank;
+      const fr = fuel / T.tank;
       ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(fx + 32, fy + 7, fw, 12);
       ctx.fillStyle = fr < 0.25 ? (Math.floor(t * 4) % 2 ? '#FA5252' : '#FFA8A8') : fr < 0.5 ? '#FAB005' : '#40C057'; ctx.fillRect(fx + 32, fy + 7, fw * fr, 12);
       // Meldungen
@@ -4751,6 +4821,7 @@ const Games = (() => {
       if (t < 3) { ctx.globalAlpha = Math.min(1, 3 - t); ctx.font = `900 ${Math.round(SH * 0.06)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.strokeText('Gas geben! In der Luft: Gas = Salto rückwärts, Bremse = vorwärts', W / 2, SH * 0.2); ctx.fillStyle = '#fff'; ctx.fillText('Gas geben! In der Luft: Gas = Salto rückwärts, Bremse = vorwärts', W / 2, SH * 0.2); ctx.globalAlpha = 1; }
     }
 
+    Games._dbgH = { keys, angle, fuel: () => fuel / T.tank, dist: () => dist, air: () => !wh[0].g && !wh[1].g, ended: () => ended };
     generate(4000);
     K.loop(dt => { if (!ended) step(dt); draw(dt); });
     return { stop() { engStop(); } };
@@ -4759,7 +4830,7 @@ const Games = (() => {
   Object.assign(Games.FNS, { hill: Bergfahrt });
   Games.CUSTOM.hill = garage;
   Games.LANDSCAPE.hill = true;
-  window.HillData = { VEHICLES, MAPS, hill };
+  window.HillData = { VEHICLES, MAPS, UPGRADES, upCost, tuned, hill };
 })();
 
 // ===== Minispiele (Update 1.7): Stall-Kracher, Hufe auskratzen, Futter sortieren =====
