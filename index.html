@@ -446,7 +446,7 @@ body.indoor[data-phase=night] .horsebox { filter: brightness(.92); }
   <div id="toast"></div>
 </div>
 <script>
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 // ===== Spieldaten: Rassen, Farben, Futter, Zubehör, Szenen =====
 // WICHTIG für Updates: Die „id“-Werte stehen im Spielstand der Spielerin (gekaufte Sachen, Rasse, Ort …).
 // Neue Einträge dürfen jederzeit dazukommen. Vorhandene ids NIE umbenennen oder löschen –
@@ -454,6 +454,7 @@ const APP_VERSION = '1.8.0';
 
 // „Was ist neu?“ – wird nach einem Update einmal angezeigt (neueste Version oben)
 const CHANGELOG = [
+  { v: '1.9.0', items: ['🐎 Neues Spiel: Barn Runner! Lauf auf 3 Spuren über den Hof – wischen zum Ausweichen, Springen und Ducken', '🪽 Extras unterwegs: Fliegen, 🥕 Supersprung (sogar auf die Heuwagen!) und 🛡️ 5 Sekunden unverwundbar', '🟡 Je 10 eingesammelte Münzen gibt es 1 echte Münze'] },
   { v: '1.8.0', items: ['🔧 Bergfahrt: Neue Werkstatt in der Garage! Verbessere Tank (15 Stufen), Motor, Getriebe, Reifen und Federung (je 10 Stufen) mit Fahrzeugmünzen', '⛽ Jede Tank-Stufe bringt 15 % mehr Sprit – und die Tankstellen kommen etwas früher', '⚠️ Achtung: Die Fahrzeuge rutschen und hüpfen jetzt mehr – mit guten Reifen und Federung wird es wieder sicherer'] },
   { v: '1.7.0', items: ['🟢🟠🔴 Jedes Spiel hat jetzt Leicht, Mittel und Schwer – schwerer gibt mehr Münzen (bis ×2)', 'Alle Spiele sind kniffliger geworden 💪', '4 neue Spiele: Stall-Kracher 🍬, Pferde-Schach ♞, Hufe auskratzen 🪨 und Futter sortieren 🧺', '🥱 Dein Pferd braucht dich mehr: Die Balken sinken schneller, und es langweilt sich, wenn du es zu lange nicht beachtest', '💕 Beim Streicheln brummelt dein Pferd jetzt leise und zufrieden'] },
   { v: '1.6.0', items: ['🚙 Neues großes Spiel: Bergfahrt! Handy quer drehen, Gas geben, Saltos machen', 'Fahrzeugmünzen sammeln: Traktor, Geländewagen und das Einhornmobil 🦄 freischalten', 'Neue Strecken: Wüste, Winterland und der Mond mit wenig Schwerkraft 🌙', 'Neue Preise: Schöne Sachen sind jetzt etwas ganz Besonderes ✨ – Glitzerspray hält 24 Stunden'] },
@@ -649,6 +650,7 @@ const SCENES = [
 ];
 
 const GAMES = [
+  { id: 'runner', energy: 20, name: 'Barn Runner', icon: '🐎', desc: 'Lauf über den Hof, weich Heuwagen aus, spring über Zäune und sammle Münzen!', color: '#F76707', neu: '1.9.0' },
   { id: 'kracher', energy: 3, name: 'Stall-Kracher', icon: '🍬', desc: 'Tausche Futter, bis 3 gleiche in einer Reihe sind – mit wenigen Zügen so viele Punkte wie möglich!', color: '#E64980', neu: '1.7.0' },
   { id: 'schach', energy: 3, name: 'Pferde-Schach', icon: '♞', desc: 'Echtes Schach gegen den Computer: Fohlen, Reitpferd oder Turnierpferd.', color: '#7950F2', neu: '1.7.0' },
   { id: 'hufe', energy: 8, name: 'Hufe auskratzen', icon: '🪨', desc: 'Kratze die Steinchen aus allen 4 Hufen – aber nicht den Strahl!', color: '#868E96', neu: '1.7.0' },
@@ -1659,7 +1661,7 @@ const Music = (() => {
     western: { bpm: 118, steps: 16, mel: WEST, ch: WEST_CH, tr: 0, lead: 'twang', drums: 'western', bass: 'western' },
     lullaby: { bpm: 60, steps: 16, mel: LULL, ch: LULL_CH, tr: 0, lead: 'box', drums: 'none', bass: 'pad', snore: true },
   };
-  const GAME_SONG = { hill: 'gallop', springen: 'gallop', rennen: 'gallop', ausritt: 'gallop', ring: 'gallop', aepfel: 'bouncy', karotten: 'bouncy', fliegen: 'bouncy', misten: 'bouncy', dressur: 'waltz', lasso: 'western', werfen: 'western', memory: 'calm', quiz: 'calm', wasser: 'calm', flechten: 'calm', simon: null, kracher: 'bouncy', schach: 'calm', hufe: 'western', sortieren: 'bouncy' };
+  const GAME_SONG = { hill: 'gallop', springen: 'gallop', rennen: 'gallop', ausritt: 'gallop', ring: 'gallop', aepfel: 'bouncy', karotten: 'bouncy', fliegen: 'bouncy', misten: 'bouncy', dressur: 'waltz', lasso: 'western', werfen: 'western', memory: 'calm', quiz: 'calm', wasser: 'calm', flechten: 'calm', simon: null, kracher: 'bouncy', runner: 'gallop', schach: 'calm', hufe: 'western', sortieren: 'bouncy' };
 
   let cur = null, bus = null, step = 0, nextT = 0, timer = 0, want = 'main';
   const ctx = () => Snd.ctx;
@@ -5516,6 +5518,415 @@ const Games = (() => {
   }
 
   Object.assign(Games.FNS, { schach: Schach });
+})();
+
+// ===== Barn Runner (Update 1.9): Endlos-Lauf auf 3 Spuren, von hinten gesehen =====
+(() => {
+  const K = Games.kit;
+  const D = K.D;
+  const C = () => K.cur();
+  const FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  const big = (ctx, txt, x, y, size, col = '#fff') => {
+    ctx.font = `900 ${Math.round(size)}px ui-rounded,system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(3, size / 7); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y);
+  };
+
+  Games.HINTS.runner = 'Lauf so weit du kannst! Wische nach links oder rechts, um die Spur zu wechseln. Nach oben wischen = springen (über Zäune und Strohballen), nach unten = ducken (unter Balken durch) oder einen Sprung abbrechen. Gegen Heuwagen hilft nur ausweichen! Seitlich anstoßen lässt dich stolpern – zweimal kurz hintereinander ist aus. Sammle Münzen (10 = 1 🪙) und Extras: 🪽 Fliegen, 🥕 Supersprung, 🛡️ 5 Sekunden unverwundbar.';
+
+  const BUFFS = {
+    fly: { icon: '🪽', name: 'Fliegen!', dur: 6, col: '#74C0FC' },
+    jump: { icon: '🥕', name: 'Supersprung!', dur: 9, col: '#FF922B' },
+    shield: { icon: '🛡️', name: 'Unverwundbar!', dur: 5, col: '#FCC419' },
+  };
+  // Hindernisse: h = Höhe, len = Länge (in m), low = Unterkante (Balken)
+  const OBS = {
+    zaun: { h: 1.0, len: 0.4 },
+    ballen: { h: 1.15, len: 1.2 },
+    balken: { h: 3.2, low: 1.25, len: 0.5 },
+    wagen: { h: 2.6, len: 9 },
+  };
+
+  function Runner() {
+    const { c, ctx, W, H } = K.makeCanvas();
+    const LANE = 2.3, CAMB = 6, CAMH = 5.6, FAR = 110;
+    const horizon = H * 0.27, F = Math.min(W * 0.85, H * 0.5);
+    const coat = byId(COATS, S.horse.coat) || COATS[0];
+    const maneC = (byId(MANE_COLORS, S.horse.mane) || {}).color || coat.mane;
+    const V0 = D(13, 15.5, 18), VMAX = D(27, 31, 35), ACC = D(0.11, 0.14, 0.17);
+    const JUMP_V = 9.5, GRAV = 30;
+
+    let t = 0, z = 0, speed = V0, lane = 0, px = 0, py = 0, vy = 0, duck = 0, dropping = false;
+    let coins = 0, done = false, crashT = 0, stumbleT = 0, bumpT = 0, bumpDir = 0, msg = '', msgT = 0, hint = 4;
+    const buff = { fly: 0, jump: 0, shield: 0 };
+    const obs = [], items = [], deco = [];
+    let genZ = 30, decoZ = 0, nextBuff = 120 + Math.random() * 80;
+
+    // ---------- Strecke erzeugen ----------
+    const wagonAt = (l, z0, z1) => obs.some(o => o.k === 'wagen' && o.lane === l && o.z < z1 && o.z + o.len > z0);
+    const blockedAt = (l, z0, z1) => obs.some(o => o.lane === l && o.z < z1 + 1 && o.z + o.len > z0 - 1);
+    function coinLine(l, z0, n, arcOver) {
+      for (let i = 0; i < n; i++) {
+        const y = arcOver ? 0.7 + Math.sin(Math.PI * i / (n - 1)) * 2.2 : 0.7;
+        items.push({ k: 'coin', lane: l, z: z0 + i * 2.2, y });
+      }
+    }
+    function genRow() {
+      const gap = Math.max(D(14, 12, 10), speed * D(1.05, 0.9, 0.78)) * (0.85 + Math.random() * 0.4);
+      genZ += gap;
+      const zz = genZ;
+      // welche Spuren bekommen ein Hindernis?
+      const pWagon = D(0.22, 0.28, 0.34), n = Math.random() < D(0.45, 0.4, 0.3) ? 1 : 2;
+      const lanes = shuffle([-1, 0, 1]).slice(0, n);
+      let free = [-1, 0, 1].filter(l => !lanes.includes(l));
+      for (const l of lanes) {
+        if (blockedAt(l, zz, zz + 1)) continue;
+        let k;
+        const r = Math.random();
+        if (r < pWagon) {
+          // nie alle 3 Spuren zugleich mit Wagen dicht
+          const len = 8 + Math.floor(Math.random() * 3) * 3;
+          const others = [-1, 0, 1].filter(x => x !== l);
+          if (others.every(o => wagonAt(o, zz - 2, zz + len + 2))) k = 'ballen';
+          else {
+            const moving = K.diff() > 0 && Math.random() < D(0, 0.25, 0.4);
+            obs.push({ k: 'wagen', lane: l, z: zz, len, moving });
+            continue;
+          }
+        } else k = r < pWagon + 0.27 ? 'zaun' : r < pWagon + 0.52 ? 'ballen' : 'balken';
+        obs.push({ k, lane: l, z: zz, len: OBS[k].len });
+        if (k !== 'balken' && Math.random() < 0.35) coinLine(l, zz - 5.5, 6, true);
+      }
+      // Münzen in einer freien Spur
+      free = free.filter(l => !wagonAt(l, zz - 4, zz + 14));
+      if (free.length && Math.random() < 0.75) coinLine(free[Math.floor(Math.random() * free.length)], zz - 3, 5 + Math.floor(Math.random() * 4), false);
+      // Extra
+      if (zz > nextBuff && free.length) {
+        const kinds = Object.keys(BUFFS);
+        items.push({ k: 'buff', b: kinds[Math.floor(Math.random() * kinds.length)], lane: free[0], z: zz + 4, y: 1.1 });
+        nextBuff = zz + D(160, 200, 240) + Math.random() * 120;
+      }
+    }
+    function genDeco() {
+      while (decoZ < z + FAR + 10) {
+        decoZ += 5 + Math.random() * 7;
+        const side = Math.random() < 0.5 ? -1 : 1, r = Math.random();
+        deco.push({ z: decoZ, x: side * (LANE * 1.5 + 2.5 + Math.random() * 6), k: r < 0.45 ? 'baum' : r < 0.7 ? 'busch' : r < 0.85 ? 'scheune' : 'blume' });
+      }
+    }
+
+    // ---------- Projektion ----------
+    const camX = () => px * 0.55;
+    const proj = (x, y, zw) => {
+      const d = zw - (z - CAMB);
+      if (d <= 0.3) return null;
+      const s = F / d;
+      return { x: W / 2 + (x - camX()) * s, y: horizon + (CAMH + (buff.fly > 0 ? 2.2 : 0) - y) * s, s };
+    };
+
+    // ---------- Steuerung ----------
+    function move(dir) {
+      if (done) return;
+      const target = lane + dir;
+      if (target < -1 || target > 1) { stumble(dir, false); return; }
+      // seitlich gegen ein Hindernis?
+      const hitSide = buff.fly <= 0 && buff.shield <= 0 && obs.some(o => o.lane === target && o.z < z + 0.8 && o.z + o.len > z - 0.8 && blocks(o));
+      if (hitSide) { stumble(dir, true); return; }
+      lane = target; Snd.play('swish');
+    }
+    function jump() {
+      if (done || buff.fly > 0) return;
+      if (py <= floorAt() + 0.01) { vy = buff.jump > 0 ? JUMP_V * 1.45 : JUMP_V; duck = 0; dropping = false; Snd.play('jump'); }
+    }
+    function down() {
+      if (done || buff.fly > 0) return;
+      if (py > floorAt() + 0.05) { vy = -22; dropping = true; } else { duck = 0.75; Snd.play('swish'); }
+    }
+    function stumble(dir, real) {
+      bumpT = 0.25; bumpDir = dir; Snd.play('knock');
+      if (!real) return;
+      if (stumbleT > 0) { crash('Zweimal gestolpert!'); return; }
+      stumbleT = 5; msg = 'Gestolpert! Vorsicht!'; msgT = 1.2; Snd.play('hurt');
+    }
+    // Boden unter dem Pferd: 0 oder ein Wagendach (nur wer schon oben ist, bleibt oben)
+    function floorAt() {
+      let f = 0;
+      for (const o of obs) if (o.k === 'wagen' && Math.abs(o.lane * LANE - px) < LANE * 0.55 && o.z < z + 0.3 && o.z + o.len > z - 0.3 && py >= OBS.wagen.h - 0.2) f = OBS.wagen.h;
+      return f;
+    }
+    // trifft das Hindernis das Pferd bei aktueller Höhe/Haltung?
+    function blocks(o) {
+      const ducking = duck > 0 && vy === 0;
+      if (o.k === 'balken') return !ducking || py > 0.2;
+      if (o.k === 'wagen') return py < OBS.wagen.h - 0.25;
+      return py < OBS[o.k].h - 0.05;
+    }
+    function crash(why) {
+      if (done) return;
+      done = true; crashT = 0.001; speed = 0; z -= 0.9;   // zurückprallen, damit das Pferd vor dem Hindernis zu sehen ist msg = why; msgT = 3; Snd.play('hurt'); Snd.play('land');
+      const m = Math.floor(z + 0.9);
+      setTimeout(() => {
+        C().paused = true;
+        const gold = Math.floor(coins / 10) + Math.floor(m / 250);
+        K.finish('runner', m, gold, `🏁 ${fmt(m)} m · ${coins} Münzen eingesammelt`);
+      }, 1500);
+    }
+
+    let sw = null;
+    const pd = e => { e.preventDefault(); sw = { x: e.clientX, y: e.clientY, used: false }; };
+    const pm = e => {
+      if (!sw || sw.used || C().paused) return;
+      const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+      if (Math.hypot(dx, dy) < 26) return;
+      sw.used = true;
+      if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1); else if (dy < 0) jump(); else down();
+    };
+    const pu = () => { sw = null; };
+    const kd = e => {
+      if (C().paused) return;
+      const k = e.key;
+      if (k === 'ArrowLeft') move(-1); else if (k === 'ArrowRight') move(1); else if (k === 'ArrowUp' || k === ' ') jump(); else if (k === 'ArrowDown') down(); else return;
+      e.preventDefault();
+    };
+    c.addEventListener('pointerdown', pd); c.addEventListener('pointermove', pm); c.addEventListener('pointerup', pu); c.addEventListener('pointercancel', pu);
+    window.addEventListener('keydown', kd);
+
+    // ---------- Zeichnen ----------
+    function drawObs(o) {
+      const lx = o.lane * LANE, hw = LANE * 0.44;
+      if (o.k === 'wagen') {
+        const h = OBS.wagen.h, zf = Math.max(o.z, z - 2), zb = o.z + o.len;
+        if (zb < z - 2) return;
+        const fl = proj(lx - hw, 0, zf), fr = proj(lx + hw, 0, zf), ftl = proj(lx - hw, h, zf), ftr = proj(lx + hw, h, zf);
+        const bl = proj(lx - hw, 0, zb), br = proj(lx + hw, 0, zb), btl = proj(lx - hw, h, zb), btr = proj(lx + hw, h, zb);
+        if (!fl || !bl) return;
+        const quad = (a, b, c2, d, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c2.x, c2.y); ctx.lineTo(d.x, d.y); ctx.fill(); };
+        // sichtbare Seite (zur Kamera hin)
+        if (lx < camX() - 0.1) quad(fr, ftr, btr, br, '#A61E1E'); else if (lx > camX() + 0.1) quad(fl, ftl, btl, bl, '#A61E1E');
+        quad(ftl, ftr, btr, btl, '#F4C77B');   // Dach mit Heu
+        ctx.fillStyle = '#FFD43B'; for (let k = 1; k < 4; k++) { const zz = zf + (zb - zf) * k / 4, a = proj(lx, h, zz); if (a) { ctx.beginPath(); ctx.ellipse(a.x, a.y, hw * a.s * 0.9, a.s * 0.25, 0, Math.PI, 0); ctx.fill(); } }
+        if (o.z < z - 2) return;
+        // Front
+        const fw = fr.x - fl.x, fh = fl.y - ftl.y;
+        ctx.fillStyle = '#E03131'; ctx.fillRect(fl.x, ftl.y, fw, fh);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, fl.s * 0.08);
+        ctx.strokeRect(fl.x + fw * 0.12, ftl.y + fh * 0.15, fw * 0.76, fh * 0.6);
+        ctx.beginPath(); ctx.moveTo(fl.x + fw * 0.12, ftl.y + fh * 0.15); ctx.lineTo(fl.x + fw * 0.88, ftl.y + fh * 0.75); ctx.moveTo(fl.x + fw * 0.88, ftl.y + fh * 0.15); ctx.lineTo(fl.x + fw * 0.12, ftl.y + fh * 0.75); ctx.stroke();
+        ctx.fillStyle = '#FFD43B'; ctx.beginPath(); ctx.ellipse(fl.x + fw / 2, ftl.y, fw * 0.5, fl.s * 0.35, 0, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = '#2B2B2B'; for (const fx of [0.15, 0.85]) { ctx.beginPath(); ctx.arc(fl.x + fw * fx, fl.y, fl.s * 0.35, 0, 7); ctx.fill(); }
+        if (o.moving) { ctx.fillStyle = '#FFE066'; for (const fx of [0.25, 0.75]) { ctx.beginPath(); ctx.arc(fl.x + fw * fx, ftl.y + fh * 0.9, fl.s * 0.16, 0, 7); ctx.fill(); } }
+        return;
+      }
+      const p = proj(lx, 0, o.z); if (!p) return;
+      const w = LANE * 0.88 * p.s, s = p.s;
+      if (o.k === 'zaun') {
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#ADB5BD'; ctx.lineWidth = Math.max(1, s * 0.03);
+        for (const yy of [0.45, 0.85]) { ctx.fillRect(p.x - w / 2, p.y - yy * s - s * 0.07, w, s * 0.14); ctx.strokeRect(p.x - w / 2, p.y - yy * s - s * 0.07, w, s * 0.14); }
+        ctx.fillStyle = '#E03131'; for (let i = 0; i < 4; i++) ctx.fillRect(p.x - w / 2 + i * w / 4 + w / 16, p.y - 0.85 * s - s * 0.07, w / 8, s * 0.14);
+        ctx.fillStyle = '#868E96'; ctx.fillRect(p.x - w / 2, p.y - s * 1.0, s * 0.1, s); ctx.fillRect(p.x + w / 2 - s * 0.1, p.y - s * 1.0, s * 0.1, s);
+      } else if (o.k === 'ballen') {
+        const h = OBS.ballen.h * s;
+        ctx.fillStyle = '#E8B923'; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(p.x - w / 2, p.y - h, w, h, s * 0.15); else ctx.rect(p.x - w / 2, p.y - h, w, h); ctx.fill();
+        ctx.fillStyle = '#FFE066'; ctx.fillRect(p.x - w / 2 + s * 0.08, p.y - h + s * 0.08, w - s * 0.16, s * 0.18);
+        ctx.strokeStyle = '#B08A10'; ctx.lineWidth = Math.max(1, s * 0.035);
+        for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(p.x - w / 2 + i * w / 6, p.y - h + s * 0.1); ctx.lineTo(p.x - w / 2 + i * w / 6 + s * 0.06, p.y - s * 0.05); ctx.stroke(); }
+        ctx.strokeStyle = '#8B5A2B'; ctx.lineWidth = Math.max(1, s * 0.05); for (const fx of [0.3, 0.7]) { ctx.beginPath(); ctx.moveTo(p.x - w / 2 + w * fx, p.y - h); ctx.lineTo(p.x - w / 2 + w * fx, p.y); ctx.stroke(); }
+      } else if (o.k === 'balken') {
+        const top = OBS.balken.h * s, low = OBS.balken.low * s;
+        ctx.fillStyle = '#8B5A2B'; ctx.fillRect(p.x - w / 2, p.y - top, s * 0.16, top); ctx.fillRect(p.x + w / 2 - s * 0.16, p.y - top, s * 0.16, top);
+        ctx.fillStyle = '#A0522D'; ctx.fillRect(p.x - w / 2 - s * 0.1, p.y - top, w + s * 0.2, s * 0.25);
+        // Decke über dem Balken (darunter ducken)
+        const cols = ['#4DABF7', '#F783AC', '#69DB7C'];
+        ctx.fillStyle = cols[(Math.abs(Math.round(o.z)) % 3)]; ctx.fillRect(p.x - w / 2 + s * 0.2, p.y - top + s * 0.2, w - s * 0.4, top - low - s * 0.2);
+        ctx.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 3; i++) ctx.fillRect(p.x - w / 2 + s * 0.2, p.y - top + s * 0.45 + i * s * 0.45, w - s * 0.4, s * 0.12);
+      }
+    }
+    function drawItem(it) {
+      const p = proj(it.lane * LANE, it.y, it.z); if (!p) return;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+      if (it.k === 'coin') {
+        const r = p.s * 0.32, sq = Math.abs(Math.cos(t * 4 + it.z));
+        ctx.fillStyle = '#F59F00'; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * Math.max(0.2, sq), r, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#FFD43B'; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * 0.72 * Math.max(0.2, sq), r * 0.72, 0, 0, 7); ctx.fill();
+      } else {
+        const r = p.s * 0.55;
+        ctx.fillStyle = BUFFS[it.b].col; ctx.globalAlpha = 0.55 + Math.sin(t * 6) * 0.2; ctx.beginPath(); ctx.arc(p.x, p.y + Math.sin(t * 3) * r * 0.15, r, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#000'; ctx.font = `${Math.round(r * 1.25)}px ${FONT}`; ctx.fillText(BUFFS[it.b].icon, p.x, p.y + Math.sin(t * 3) * r * 0.15);
+      }
+    }
+    function drawDeco(d) {
+      const p = proj(d.x, 0, d.z); if (!p) return;
+      const s = p.s; ctx.fillStyle = '#000';
+      if (d.k === 'baum') {
+        ctx.fillStyle = '#7B4B2A'; ctx.fillRect(p.x - s * 0.2, p.y - s * 2.2, s * 0.4, s * 2.2);
+        ctx.fillStyle = '#2F9E44'; ctx.beginPath(); ctx.arc(p.x, p.y - s * 2.8, s * 1.3, 0, 7); ctx.fill();
+        ctx.fillStyle = '#40C057'; ctx.beginPath(); ctx.arc(p.x - s * 0.4, p.y - s * 3.1, s * 0.8, 0, 7); ctx.fill();
+      } else if (d.k === 'busch') {
+        ctx.fillStyle = '#37B24D'; ctx.beginPath(); ctx.ellipse(p.x, p.y - s * 0.4, s * 0.9, s * 0.6, 0, 0, 7); ctx.fill();
+      } else if (d.k === 'scheune') {
+        const w = s * 4, h = s * 3;
+        ctx.fillStyle = '#C92A2A'; ctx.fillRect(p.x - w / 2, p.y - h, w, h);
+        ctx.fillStyle = '#862E2E'; ctx.beginPath(); ctx.moveTo(p.x - w / 2 - s * 0.3, p.y - h); ctx.lineTo(p.x, p.y - h - s * 1.6); ctx.lineTo(p.x + w / 2 + s * 0.3, p.y - h); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, s * 0.12); ctx.strokeRect(p.x - s * 0.8, p.y - s * 1.8, s * 1.6, s * 1.8);
+      } else {
+        ctx.fillStyle = ['#F06595', '#FCC419', '#fff'][Math.floor(d.z) % 3]; ctx.beginPath(); ctx.arc(p.x, p.y - s * 0.2, s * 0.2, 0, 7); ctx.fill();
+      }
+    }
+    // Pferd von hinten
+    function drawHorse() {
+      const fly = buff.fly > 0;
+      const yy = fly ? 4.2 + Math.sin(t * 3) * 0.25 : py;
+      const shake = bumpT > 0 ? Math.sin(bumpT * 60) * 0.12 + bumpDir * bumpT * 0.6 : 0;
+      const ground = proj(px + shake, 0, z), p = proj(px + shake, yy, z);
+      if (!p) return;
+      const s = p.s * 1.3, ducking = duck > 0 && py < 2.7 && vy === 0, crashed = done;
+      const gal = (done ? 0 : Math.sin(t * speed * 0.9)), lean = (lane * LANE - px) * 0.12 + (crashed ? 0.9 : 0);
+      // Schatten
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(ground.x, ground.y, s * 0.75 / (1 + yy * 0.25), s * 0.2 / (1 + yy * 0.25), 0, 0, 7); ctx.fill();
+      // Schutzschild
+      if (buff.shield > 0) { ctx.fillStyle = `rgba(252,196,25,${0.25 + Math.sin(t * 10) * 0.1})`; ctx.beginPath(); ctx.arc(p.x, p.y - s * 1.1, s * 1.35, 0, 7); ctx.fill(); }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(lean * 0.3);
+      const bodyH = ducking ? s * 0.75 : s * 1.0, legH = ducking ? s * 0.3 : s * 0.62;
+      const legCol = coat.legs || coat.body;
+      // Beine (hinten)
+      ctx.fillStyle = legCol;
+      for (const [sx, ph] of [[-0.28, 0], [0.28, Math.PI]]) {
+        const lift = vy !== 0 || fly ? 0.15 : Math.max(0, Math.sin(t * speed * 0.9 + ph)) * 0.25;
+        ctx.fillRect(sx * s - s * 0.09, -legH - s * 0.05, s * 0.18, legH * (1 - lift));
+        ctx.fillStyle = '#3B2A20'; ctx.fillRect(sx * s - s * 0.1, -legH * lift - s * 0.1, s * 0.2, s * 0.1); ctx.fillStyle = legCol;
+      }
+      // Körper (Hinterteil)
+      const by = -legH - bodyH * 0.55;
+      ctx.fillStyle = coat.body;
+      ctx.beginPath(); ctx.ellipse(-s * 0.2, by, s * 0.32, bodyH * 0.55, 0, 0, 7); ctx.ellipse(s * 0.2, by, s * 0.32, bodyH * 0.55, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(-s * 0.015, by - bodyH * 0.4, s * 0.03, bodyH * 0.8);
+      // Rücken/Hals & Kopf
+      const hy = by - bodyH * 0.55 - (ducking ? 0 : s * 0.25) + gal * s * 0.03;
+      ctx.fillStyle = coat.body; ctx.beginPath(); ctx.ellipse(0, hy + s * 0.15, s * 0.22, s * 0.32, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, hy - s * 0.18, s * 0.17, s * 0.2, 0, 0, 7); ctx.fill();
+      // Ohren
+      ctx.beginPath(); ctx.moveTo(-s * 0.15, hy - s * 0.28); ctx.lineTo(-s * 0.1, hy - s * 0.52); ctx.lineTo(-s * 0.03, hy - s * 0.3); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s * 0.15, hy - s * 0.28); ctx.lineTo(s * 0.1, hy - s * 0.52); ctx.lineTo(s * 0.03, hy - s * 0.3); ctx.fill();
+      // Mähne
+      ctx.fillStyle = maneC; ctx.beginPath(); ctx.ellipse(gal * s * 0.03, hy + s * 0.05, s * 0.08, s * 0.38, 0, 0, 7); ctx.fill();
+      // Flügel
+      if (fly) {
+        ctx.fillStyle = 'rgba(255,255,255,.95)'; const fl = Math.sin(t * 14) * 0.5;
+        for (const sd of [-1, 1]) { ctx.save(); ctx.translate(sd * s * 0.3, by - bodyH * 0.3); ctx.rotate(sd * (-0.6 + fl)); ctx.beginPath(); ctx.ellipse(sd * s * 0.45, 0, s * 0.5, s * 0.16, 0, 0, 7); ctx.fill(); ctx.restore(); }
+      }
+      // Schweif
+      ctx.strokeStyle = maneC; ctx.lineWidth = s * 0.16; ctx.lineCap = 'round';
+      const sw2 = Math.sin(t * 9) * s * 0.12 + (lane * LANE - px) * -s * 0.1;
+      ctx.beginPath(); ctx.moveTo(0, by - bodyH * 0.35); ctx.quadraticCurveTo(sw2, by + bodyH * 0.1, sw2 * 1.4, by + bodyH * 0.55); ctx.stroke();
+      ctx.restore();
+    }
+
+    K.loop(dt => {
+      t += dt; msgT -= dt; hint -= dt; bumpT = Math.max(0, bumpT - dt);
+      if (!done) {
+        speed = Math.min(VMAX, speed + ACC * dt);
+        z += speed * dt;
+        stumbleT = Math.max(0, stumbleT - dt);
+        const wasFly = buff.fly > 0;
+        for (const k in buff) buff[k] = Math.max(0, buff[k] - dt);
+        if (wasFly && buff.fly <= 0) { py = 4.2; vy = 0; }   // nach dem Fliegen sanft landen
+        // seitlich gleiten
+        const tx = lane * LANE; px += (tx - px) * Math.min(1, dt * 14);
+        // springen
+        if (buff.fly > 0) { py = 0; vy = 0; }
+        else {
+          const fl = floorAt();
+          if (py > fl || vy > 0) { vy -= GRAV * (dropping ? 1.6 : 1) * dt; py += vy * dt; if (py <= fl) { py = fl; vy = 0; if (dropping) { duck = 0.6; dropping = false; } Snd.play('land'); } }
+          else py = fl;
+        }
+        duck = Math.max(0, duck - dt);
+        while (genZ < z + FAR) genRow();
+        genDeco();
+        // fahrende Wagen kommen entgegen
+        for (const o of obs) if (o.moving && o.z - z < 60) o.z -= speed * 0.45 * dt;
+        // Zusammenstoß (vorne)
+        if (buff.fly <= 0) {
+          for (const o of obs) {
+            if (o.hit || Math.abs(o.lane * LANE - px) > LANE * 0.55) continue;
+            if (o.z < z + 0.5 && o.z + o.len > z - 0.3 && blocks(o)) {
+              if (buff.shield > 0) { o.hit = true; Snd.play('sparkle'); continue; }
+              crash(o.k === 'wagen' ? 'Gegen den Heuwagen!' : o.k === 'balken' ? 'Ducken vergessen!' : 'Hängengeblieben!');
+              break;
+            }
+          }
+        }
+        // Einsammeln
+        const ey = buff.fly > 0 ? 4.2 : py;
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i];
+          if (it.z < z - 2) { items.splice(i, 1); continue; }
+          if (Math.abs(it.z - z) < 0.9 && Math.abs(it.lane * LANE - px) < LANE * 0.55 && Math.abs(it.y - (ey + 0.9)) < 1.6) {
+            items.splice(i, 1);
+            if (it.k === 'coin') { coins++; Snd.tone(1320 + (coins % 5) * 60, 0.06, 'square', 0.06); }
+            else {
+              buff[it.b] = BUFFS[it.b].dur; msg = BUFFS[it.b].icon + ' ' + BUFFS[it.b].name; msgT = 1.3; Snd.play('sparkle');
+              if (it.b === 'fly') { py = 0; vy = 0; for (const l of [-1, 0, 1]) for (let k = 0; k < 6; k++) items.push({ k: 'coin', lane: l, z: z + 14 + k * 9 + l * 3, y: 4.6 }); }
+            }
+          }
+        }
+        // Magnet beim Fliegen: Münzen in der Luft
+        while (obs.length && obs[0].z + obs[0].len < z - CAMB) obs.shift();
+        while (deco.length && deco[0].z < z - CAMB) deco.shift();
+      } else crashT += dt;
+
+      K.hud('🏁 ' + fmt(Math.floor(z)) + ' m', '🟡 ' + coins);
+
+      // Himmel & Landschaft
+      const g = ctx.createLinearGradient(0, 0, 0, horizon); g.addColorStop(0, '#74C0FC'); g.addColorStop(1, '#D0EBFF');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizon + 2);
+      ctx.fillStyle = '#8CE99A'; ctx.beginPath(); ctx.moveTo(0, horizon);
+      for (let x = 0; x <= W; x += 20) ctx.lineTo(x, horizon - 18 - Math.sin(x * 0.012 + 1) * 14 - Math.sin(x * 0.031) * 6);
+      ctx.lineTo(W, horizon); ctx.fill();
+      ctx.fillStyle = '#69DB7C'; ctx.fillRect(0, horizon, W, H - horizon);
+      // Spuren
+      const near = z - CAMB + 0.4;
+      const corner = (x, zz) => proj(x, 0, zz);
+      const l0 = corner(-LANE * 1.55, near), r0 = corner(LANE * 1.55, near), l1 = corner(-LANE * 1.55, z + FAR), r1 = corner(LANE * 1.55, z + FAR);
+      ctx.fillStyle = '#C69C6D'; ctx.beginPath(); ctx.moveTo(l0.x, l0.y); ctx.lineTo(r0.x, r0.y); ctx.lineTo(r1.x, r1.y); ctx.lineTo(l1.x, l1.y); ctx.fill();
+      // Querbretter / Hufspuren zum Tempo-Gefühl
+      ctx.fillStyle = 'rgba(120,80,40,.25)';
+      for (let k = Math.ceil(near / 3) * 3; k < z + FAR; k += 3) {
+        const a = corner(-LANE * 1.55, k), b = corner(LANE * 1.55, k), a2 = corner(-LANE * 1.55, k + 0.6), b2 = corner(LANE * 1.55, k + 0.6);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(a2.x, a2.y); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
+      for (const lx of [-LANE / 2, LANE / 2]) { const a = corner(lx, near), b = corner(lx, z + FAR); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      ctx.strokeStyle = '#8B5A2B'; ctx.lineWidth = 4;
+      for (const lx of [-LANE * 1.55, LANE * 1.55]) { const a = corner(lx, near), b = corner(lx, z + FAR); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      // alles von hinten nach vorne
+      const list = [];
+      for (const d of deco) if (d.z < z + FAR) list.push({ z: d.z, f: () => drawDeco(d) });
+      for (const o of obs) if (o.z < z + FAR && !o.hit) list.push({ z: o.k === 'wagen' ? Math.max(o.z, z - 2) + 0.01 : o.z, f: () => drawObs(o) });
+      for (const it of items) if (it.z < z + FAR) list.push({ z: it.z, f: () => drawItem(it) });
+      list.push({ z: z - 0.01, f: drawHorse });
+      list.sort((a, b) => b.z - a.z);
+      for (const e of list) e.f();
+      // Hund beim Stolpern
+      if (stumbleT > 0 && !done) {
+        const p = proj(px - 0.6, 0, z - 2.6); if (p) { ctx.fillStyle = '#000'; ctx.font = `${Math.round(p.s * 1.1)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('🐕', p.x, p.y + Math.abs(Math.sin(t * 14)) * -p.s * 0.2); }
+      }
+      // Extras-Anzeige
+      let bx = 12;
+      for (const k in buff) if (buff[k] > 0) {
+        const b = BUFFS[k];
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(bx + 22, 34, 22, 0, 7); ctx.fill();
+        ctx.strokeStyle = b.col; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(bx + 22, 34, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buff[k] / b.dur); ctx.stroke();
+        ctx.fillStyle = '#000'; ctx.font = `22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.icon, bx + 22, 35);
+        bx += 52;
+      }
+      if (stumbleT > 0 && !done) big(ctx, '⚠️', W - 30, 34, 26);
+      if (msgT > 0) { ctx.globalAlpha = Math.min(1, msgT * 2); big(ctx, msg, W / 2, H * 0.2, Math.min(30, W * 0.075), done ? '#FFC9C9' : '#fff'); ctx.globalAlpha = 1; }
+      if (hint > 0 && !done) { ctx.globalAlpha = Math.min(1, hint); big(ctx, '← → wischen · ↑ springen · ↓ ducken', W / 2, H * 0.9, Math.min(20, W * 0.05)); ctx.globalAlpha = 1; }
+    });
+    Games._dbgR = { obs, items, buff, state: () => ({ z, lane, px, py, duck, done, coins, speed }), move, jump, down };
+    return { stop() { c.removeEventListener('pointerdown', pd); c.removeEventListener('pointermove', pm); c.removeEventListener('pointerup', pu); c.removeEventListener('pointercancel', pu); window.removeEventListener('keydown', kd); } };
+  }
+
+  Object.assign(Games.FNS, { runner: Runner });
 })();
 
 </script>
